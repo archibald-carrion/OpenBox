@@ -1,8 +1,6 @@
 /**
  * GAME: Quick Trivia
- * ──────────────────
- * Players answer multiple-choice questions as fast as possible.
- * Points are awarded based on speed + correctness.
+ * Server-side logic only. UI lives in host.html / host.js / player.html / player.js
  */
 
 const QUESTIONS = [
@@ -14,13 +12,15 @@ const QUESTIONS = [
   { q: "Which ocean is the largest?",              choices: ["Atlantic","Indian","Arctic","Pacific"],       answer: 3 },
   { q: "How many bones in the adult human body?",  choices: ["196","206","216","226"],                      answer: 1 },
   { q: "What gas do plants absorb from the air?",  choices: ["Oxygen","Nitrogen","CO2","Hydrogen"],         answer: 2 },
+  { q: "What is the capital of Japan?",            choices: ["Seoul","Beijing","Tokyo","Bangkok"],          answer: 2 },
+  { q: "How many players on a basketball team?",   choices: ["4","5","6","7"],                              answer: 1 },
 ];
 
 let state = {};
 
 const game = {
-  id: "trivia",
-  name: "⚡ Quick Trivia",
+  id:         "trivia",
+  name:       "⚡ Quick Trivia",
   minPlayers: 1,
   maxPlayers: 16,
 
@@ -31,31 +31,64 @@ const game = {
       current:       0,
       scores:        Object.fromEntries(Object.keys(players).map(id => [id, 0])),
       answered:      {},
-      questionStart: 0,
+      questionStart: Date.now(),
       timer:         null,
       io, players, endGame,
     };
-    game._sendQuestion();
+    // Timer starts now — host and players both pull their view via ready events
+    clearTimeout(state.timer);
+    state.timer = setTimeout(() => game._revealAnswer(), 15000);
   },
 
-  _sendQuestion() {
+  // Host pulled its initial state
+  onHostReady({ hostSocket }) {
+    if (!state.questions) return;
+    game._sendCurrentQuestionTo(hostSocket);
+    hostSocket.emit("host:show_action", { label: "⏭ Skip", type: "skip" });
+  },
+
+  // Player pulled its initial state
+  onPlayerReady({ socket }) {
+    if (!state.questions) return;
     const q = state.questions[state.current];
+    socket.emit("trivia:question", {
+      index: state.current, total: state.questions.length,
+      question: q.q, choices: q.choices,
+    });
+  },
+
+  _sendCurrentQuestionTo(target) {
+    const q = state.questions[state.current];
+    target.emit("trivia:question", {
+      index: state.current, total: state.questions.length,
+      question: q.q, choices: q.choices,
+    });
+  },
+
+  // Used for rounds 2+ — all UIs are loaded by then so broadcast is safe
+  _sendQuestion() {
     state.answered      = {};
     state.questionStart = Date.now();
     state.io.emit("trivia:question", {
       index: state.current, total: state.questions.length,
-      question: q.q, choices: q.choices,
+      question: state.questions[state.current].q,
+      choices:  state.questions[state.current].choices,
     });
+    state.io.to("host").emit("host:show_action", { label: "⏭ Skip", type: "skip" });
     clearTimeout(state.timer);
     state.timer = setTimeout(() => game._revealAnswer(), 15000);
   },
 
   _revealAnswer() {
     clearTimeout(state.timer);
+    state.io.to("host").emit("host:hide_action");
+
     const q = state.questions[state.current];
     state.io.emit("trivia:reveal", {
-      correctIndex: q.answer, scores: game._scoreBoard(),
+      correctIndex: q.answer,
+      scores:       game._scoreBoard(),
     });
+
     state.current++;
     if (state.current < state.questions.length) {
       state.timer = setTimeout(() => game._sendQuestion(), 4000);
@@ -75,15 +108,19 @@ const game = {
 
   onPlayerAction({ socket, payload, players }) {
     if (payload.type !== "answer" || state.answered[socket.id]) return;
+
     state.answered[socket.id] = true;
     const q       = state.questions[state.current];
     const elapsed = Date.now() - state.questionStart;
     const correct = payload.choice === q.answer;
+
     if (correct) {
       const speed = Math.max(0, 1 - elapsed / 15000);
       state.scores[socket.id] = (state.scores[socket.id] || 0) + Math.round(100 + speed * 400);
     }
+
     socket.emit("trivia:ack", { correct });
+
     if (Object.keys(players).every(id => state.answered[id])) {
       clearTimeout(state.timer);
       state.timer = setTimeout(() => game._revealAnswer(), 800);
@@ -91,12 +128,15 @@ const game = {
   },
 
   onHostAction({ payload }) {
-    if (payload.type === "skip") { clearTimeout(state.timer); game._revealAnswer(); }
+    if (payload.type === "skip") {
+      clearTimeout(state.timer);
+      game._revealAnswer();
+    }
   },
 
   onEnd() {
     clearTimeout(state.timer);
-    state.timer = null;
+    state = {};
   },
 };
 

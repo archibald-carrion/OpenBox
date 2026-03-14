@@ -1,0 +1,71 @@
+<style>
+  .trivia-prog {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+  }
+
+  .trivia-q-text {
+    font-weight: 800;
+    font-size: 1.15rem;
+    line-height: 1.4;
+    margin-bottom: 16px;
+  }
+
+  .trivia-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 8px;
+  }
+
+  .trivia-choice-btn {
+    padding: 18px 10px;
+    border-radius: 14px;
+    border: 2px solid transparent;
+    font-family: 'Nunito', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: white;
+  }
+
+  .trivia-choice-btn:active  { transform: scale(0.95); }
+  .trivia-choice-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .trivia-choice-btn.correct  { box-shadow: 0 0 20px rgba(6,214,160,0.7); transform: scale(1.05); }
+  .trivia-choice-btn.wrong    { opacity: 0.3; }
+
+  .trivia-choice-btn.A { background: #ef476f; }
+  .trivia-choice-btn.B { background: #118ab2; }
+  .trivia-choice-btn.C { background: #e9c46a; color: #333; }
+  .trivia-choice-btn.D { background: #06d6a0; color: #111; }
+
+  #trivia-status {
+    margin-top: 16px;
+    font-size: 1.2rem;
+    font-weight: 800;
+    min-height: 32px;
+  }
+
+  #trivia-wait {
+    text-align: center;
+    padding: 20px;
+  }
+
+  .big-emoji  { font-size: 4rem; display: block; margin-bottom: 12px; }
+  .big-msg    { font-family: 'Fredoka One', cursive; font-size: 1.6rem; color: var(--yellow); }
+  .small-msg  { color: var(--muted); margin-top: 8px; font-size: 0.95rem; }
+</style>
+
+<div id="trivia-question-panel">
+  <p class="trivia-prog" id="trivia-prog"></p>
+  <p class="trivia-q-text" id="trivia-q"></p>
+  <div class="trivia-grid" id="trivia-btns"></div>
+  <div id="trivia-status"></div>
+</div>
+
+<div id="trivia-wait" style="display:none">
+  <span class="big-emoji" id="trivia-wait-emoji">⏳</span>
+  <div class="big-msg"   id="trivia-wait-msg">Next question soon…</div>
+</div>

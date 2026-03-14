@@ -2,21 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Party Games – Host</title>
+<title>OpenBox – Host</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;800&display=swap');
 
   :root {
-    --bg: #0f0e17;
-    --panel: #1a1830;
+    --bg:     #0f0e17;
+    --panel:  #1a1830;
     --accent: #ff6b35;
     --yellow: #ffd166;
-    --green: #06d6a0;
-    --blue: #118ab2;
-    --pink: #ef476f;
-    --text: #fffffe;
-    --muted: #a8a4c0;
+    --green:  #06d6a0;
+    --pink:   #ef476f;
+    --text:   #fffffe;
+    --muted:  #a8a4c0;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -38,21 +37,16 @@
     padding: 16px 32px;
     background: var(--panel);
     border-bottom: 3px solid var(--accent);
+    flex-shrink: 0;
   }
 
   header h1 {
     font-family: 'Fredoka One', cursive;
     font-size: 2rem;
     color: var(--accent);
-    letter-spacing: 1px;
   }
 
-  #join-info {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    font-size: 0.95rem;
-  }
+  #join-info { display: flex; align-items: center; gap: 20px; }
 
   #join-info .url {
     font-family: monospace;
@@ -64,16 +58,21 @@
     border: 1px solid var(--yellow);
   }
 
-  #qr-img { width: 80px; height: 80px; border-radius: 8px; background: white; padding: 4px; }
+  #qr-img {
+    width: 80px; height: 80px;
+    border-radius: 8px;
+    background: white;
+    padding: 4px;
+  }
 
-  /* ── Main ── */
+  /* ── Layout ── */
   main {
     flex: 1;
     display: flex;
-    gap: 0;
+    overflow: hidden;
   }
 
-  /* ── Sidebar: Players ── */
+  /* ── Sidebar ── */
   #sidebar {
     width: 220px;
     background: var(--panel);
@@ -82,11 +81,12 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+    flex-shrink: 0;
   }
 
   #sidebar h2 {
     font-family: 'Fredoka One', cursive;
-    font-size: 1.1rem;
+    font-size: 1rem;
     color: var(--muted);
     text-transform: uppercase;
     letter-spacing: 2px;
@@ -100,46 +100,39 @@
     border-radius: 10px;
     padding: 8px 12px;
     font-weight: 700;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     display: flex;
     align-items: center;
     gap: 8px;
   }
 
-  #player-list li::before {
-    content: '●';
-    color: var(--green);
-    font-size: 0.7rem;
-  }
+  #player-list li::before { content: '●'; color: var(--green); font-size: 0.65rem; }
 
-  /* ── Game Area ── */
+  /* ── Game area ── */
   #game-area {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 32px;
+    overflow: auto;
   }
 
   /* ── Lobby ── */
   #lobby {
     text-align: center;
-    max-width: 800px;
+    max-width: 860px;
     width: 100%;
   }
 
   #lobby h2 {
     font-family: 'Fredoka One', cursive;
     font-size: 3rem;
-    margin-bottom: 8px;
     color: var(--yellow);
+    margin-bottom: 8px;
   }
 
-  #lobby p {
-    color: var(--muted);
-    font-size: 1.1rem;
-    margin-bottom: 32px;
-  }
+  #lobby p { color: var(--muted); font-size: 1.1rem; margin-bottom: 32px; }
 
   #game-list {
     display: grid;
@@ -164,16 +157,8 @@
     transform: translateY(-3px);
   }
 
-  .game-card .game-name {
-    font-family: 'Fredoka One', cursive;
-    font-size: 1.4rem;
-    margin-bottom: 6px;
-  }
-
-  .game-card .game-meta {
-    font-size: 0.85rem;
-    color: var(--muted);
-  }
+  .game-card .game-name { font-family: 'Fredoka One', cursive; font-size: 1.4rem; margin-bottom: 6px; }
+  .game-card .game-meta { font-size: 0.85rem; color: var(--muted); }
 
   #btn-start {
     font-family: 'Fredoka One', cursive;
@@ -188,159 +173,64 @@
     box-shadow: 0 4px 24px rgba(255,107,53,0.4);
   }
 
-  #btn-start:hover { transform: scale(1.05); }
+  #btn-start:hover    { transform: scale(1.05); }
   #btn-start:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
-  #btn-quit {
-    margin-top: auto;
+  #error-msg { color: var(--pink); margin-top: 12px; font-weight: 700; min-height: 24px; }
+
+  /* ── Game container (injected game HTML lives here) ── */
+  #game-container { width: 100%; height: 100%; display: none; }
+
+  /* ── Fixed buttons ── */
+  #btn-end {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
     font-family: 'Fredoka One', cursive;
     font-size: 1rem;
-    background: rgba(255,107,53,0.12);
+    background: #2a2845;
     color: var(--muted);
-    border: 1px solid rgba(255,107,53,0.3);
-    padding: 12px 18px;
+    border: 1px solid #3a3860;
+    padding: 10px 24px;
     border-radius: 50px;
     cursor: pointer;
     transition: all 0.2s;
+    display: none;
+    z-index: 100;
   }
 
-  #btn-quit:hover {
-    background: rgba(255,107,53,0.25);
-  }
+  #btn-end:hover { background: var(--pink); color: white; border-color: var(--pink); }
 
-  #error-msg {
-    color: var(--pink);
-    margin-top: 12px;
-    font-weight: 700;
-    min-height: 24px;
-  }
-
-  /* ── In-Game Views ── */
-  .game-view {
-    width: 100%;
-    text-align: center;
-  }
-
-  .big-title {
+  /* Game-injected action button */
+  .btn-game-action {
+    position: fixed;
+    bottom: 24px;
+    right: 160px;
     font-family: 'Fredoka One', cursive;
-    font-size: 2.4rem;
-    color: var(--yellow);
-    margin-bottom: 12px;
-  }
-
-  /* Trivia */
-  #trivia-view .question-text {
-    font-size: 2rem;
-    font-weight: 800;
-    margin: 24px 0 32px;
-    line-height: 1.3;
-  }
-
-  #trivia-view .choices {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    max-width: 700px;
-    margin: 0 auto;
-  }
-
-  .choice-btn {
-    padding: 20px;
-    border-radius: 14px;
-    font-family: 'Nunito', sans-serif;
-    font-size: 1.2rem;
-    font-weight: 700;
-    border: 2px solid transparent;
-    cursor: default;
-    transition: all 0.3s;
-  }
-
-  .choice-btn.A { background: rgba(239,71,111,0.2); border-color: var(--pink); }
-  .choice-btn.B { background: rgba(17,138,178,0.2); border-color: var(--blue); }
-  .choice-btn.C { background: rgba(255,209,102,0.2); border-color: var(--yellow); }
-  .choice-btn.D { background: rgba(6,214,160,0.2); border-color: var(--green); }
-
-  .choice-btn.correct { transform: scale(1.05); box-shadow: 0 0 30px rgba(6,214,160,0.6); }
-  .choice-btn.wrong   { opacity: 0.35; }
-
-  #trivia-view .timer-bar {
-    height: 8px;
+    font-size: 1rem;
     background: #2a2845;
-    border-radius: 4px;
-    margin-bottom: 16px;
-    overflow: hidden;
-  }
-
-  #trivia-timer-fill {
-    height: 100%;
-    background: var(--accent);
-    border-radius: 4px;
-    transition: width 1s linear;
-  }
-
-  /* Scoreboard */
-  #scoreboard {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    max-width: 500px;
-    margin: 0 auto;
-    width: 100%;
-  }
-
-  .score-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: var(--panel);
-    border-radius: 12px;
-    padding: 12px 20px;
-    font-size: 1.2rem;
-    font-weight: 700;
-    animation: slideIn 0.4s ease both;
-  }
-
-  .score-row:nth-child(1) { border-left: 4px solid var(--yellow); }
-  .score-row:nth-child(2) { border-left: 4px solid var(--muted); }
-  .score-row:nth-child(3) { border-left: 4px solid #cd7f32; }
-
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateX(-20px); }
-    to   { opacity: 1; transform: translateX(0); }
-  }
-
-  /* Draw & Guess */
-  #draw-canvas-wrap {
-    position: relative;
-    display: inline-block;
-    border-radius: 16px;
-    overflow: hidden;
-    border: 3px solid var(--accent);
-    background: white;
-  }
-
-  #draw-canvas { display: block; }
-
-  #draw-label {
-    font-size: 1.1rem;
     color: var(--muted);
-    margin-top: 8px;
+    border: 1px solid #3a3860;
+    padding: 10px 24px;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.2s;
+    z-index: 100;
   }
 
-  /* hidden helper */
-  .hidden { display: none !important; }
+  .btn-game-action:hover { background: var(--yellow); color: #111; border-color: var(--yellow); }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>🎮 Party Games</h1>
+  <h1>🎮 OpenBox</h1>
   <div id="join-info">
     <div>
       <div style="font-size:0.8rem;color:var(--muted);margin-bottom:2px">Players join at:</div>
       <div class="url" id="player-url">loading…</div>
     </div>
-    <img id="qr-img" alt="QR Code">
+    <img id="qr-img" alt="QR">
   </div>
 </header>
 
@@ -348,105 +238,72 @@
   <aside id="sidebar">
     <h2>👥 Players (<span id="player-count">0</span>)</h2>
     <ul id="player-list"></ul>
-    <button id="btn-quit" type="button">Quit Game</button>
   </aside>
 
   <section id="game-area">
-
     <!-- LOBBY -->
     <div id="lobby">
       <h2>Choose a Game</h2>
-      <p>Select a game below, then press Start when everyone has joined!</p>
-      <div id="game-list"><!-- populated by JS --></div>
+      <p>Select a game, then press Start when everyone has joined!</p>
+      <div id="game-list"></div>
       <button id="btn-start" disabled>Start Game</button>
       <div id="error-msg"></div>
     </div>
 
-    <!-- TRIVIA -->
-    <div id="trivia-view" class="game-view hidden">
-      <div class="big-title" id="trivia-header">Question 1 / 6</div>
-      <div class="timer-bar"><div id="trivia-timer-fill" style="width:100%"></div></div>
-      <div class="question-text" id="trivia-question"></div>
-      <div class="choices" id="trivia-choices"></div>
-    </div>
-
-    <!-- TRIVIA SCOREBOARD -->
-    <div id="trivia-score-view" class="game-view hidden">
-      <div class="big-title">🏆 Scores</div>
-      <div id="scoreboard"></div>
-    </div>
-
-    <!-- DRAW & GUESS -->
-    <div id="drawguess-view" class="game-view hidden">
-      <div class="big-title" id="draw-header">🎨 Draw & Guess</div>
-      <div id="draw-label" style="margin-bottom:12px"></div>
-      <div id="draw-canvas-wrap">
-        <canvas id="draw-canvas" width="640" height="400"></canvas>
-      </div>
-    </div>
-
-    <!-- DRAW SCOREBOARD -->
-    <div id="draw-score-view" class="game-view hidden">
-      <div class="big-title">🏆 Final Scores</div>
-      <div id="draw-scoreboard"></div>
-    </div>
-
+    <!-- Active game UI is injected here -->
+    <div id="game-container" style="display:none;width:100%;height:100%"></div>
   </section>
 </main>
+
+<!-- Always-visible end game button (shown during any game) -->
+<button id="btn-end">🚪 End Game</button>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const socket = io();
 socket.emit("host:connect");
 
-// ── QR + URL ──────────────────────────────────────────────────────────────
-(async () => {
-  const ipRes = await fetch("/api/ip");
-  const { ip } = await ipRes.json();
-  const playerUrl = `http://${ip}:${location.port}/player`;
-  document.getElementById("player-url").textContent = playerUrl;
-  document.getElementById("qr-img").src = `/qr?url=${encodeURIComponent(playerUrl)}`;
-})();
-
 // ── Helpers ───────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
-function showView(id) {
-  ["lobby","trivia-view","trivia-score-view","drawguess-view","draw-score-view"]
-    .forEach(v => $(v).classList.add("hidden"));
-  if (id) $(id).classList.remove("hidden");
+
+function showLobby() {
+  $("lobby").style.display         = "";
+  $("game-container").style.display = "none";
+  $("btn-end").style.display        = "none";
+  removeGameAction();
 }
 
-function renderScoreboard(containerId, scores) {
-  const el = $(containerId);
-  el.innerHTML = scores.map((s, i) => `
-    <div class="score-row" style="animation-delay:${i*0.1}s">
-      <span>${i===0?"🥇":i===1?"🥈":i===2?"🥉":"  #"+(i+1)} ${s.name}</span>
-      <span>${s.score} pts</span>
-    </div>`).join("");
+function showGame() {
+  $("lobby").style.display          = "none";
+  $("game-container").style.display = "block";
+  $("btn-end").style.display        = "block";
 }
+
+// ── QR / URL (fetched from server so it's the real LAN IP) ───────────────
+(async () => {
+  const { ip } = await fetch("/api/ip").then(r => r.json());
+  const playerUrl = `http://${ip}:${location.port}/player`;
+  $("player-url").textContent = playerUrl;
+  $("qr-img").src = `/qr?url=${encodeURIComponent(playerUrl)}`;
+})();
 
 // ── Lobby ─────────────────────────────────────────────────────────────────
 let selectedGame = null;
-let gameRunning = false;
 
-socket.on("host:init", ({ players, games }) => {
-  renderGames(games);
-  renderPlayers(players);
-});
-
-socket.on("lobby:update", ({ players, games }) => {
-  renderPlayers(players);
-  if (games) renderGames(games);
-});
-
-socket.on("host:error", msg => {
+socket.on("host:init",    ({ players, games }) => { renderPlayers(players); renderGames(games); });
+socket.on("lobby:update", ({ players, games }) => { renderPlayers(players); if (games) renderGames(games); });
+socket.on("host:error",   msg => {
   $("error-msg").textContent = msg;
   setTimeout(() => $("error-msg").textContent = "", 4000);
 });
 
+function renderPlayers(players) {
+  $("player-count").textContent = players.length;
+  $("player-list").innerHTML = players.map(p => `<li>${p.name}</li>`).join("");
+}
+
 function renderGames(games) {
-  const list = $("game-list");
-  list.innerHTML = games.map(g => `
+  $("game-list").innerHTML = games.map(g => `
     <div class="game-card" data-id="${g.id}" onclick="selectGame('${g.id}')">
       <div class="game-name">${g.name}</div>
       <div class="game-meta">${g.minPlayers}–${g.maxPlayers} players</div>
@@ -460,118 +317,65 @@ function selectGame(id) {
   $("btn-start").disabled = false;
 }
 
-function renderPlayers(players) {
-  $("player-count").textContent = players.length;
-  $("player-list").innerHTML = players.map(p =>
-    `<li>${p.name}</li>`).join("");
-}
-
 $("btn-start").onclick = () => {
-  if (!selectedGame) return;
-  socket.emit("host:start_game", { gameId: selectedGame });
+  if (selectedGame) socket.emit("host:start_game", { gameId: selectedGame });
 };
 
-$("btn-quit").onclick = () => {
-  if (!gameRunning) return;
-  socket.emit("host:end_game");
-};
+$("btn-end").onclick = () => socket.emit("host:end_game");
 
-// ── Game start/end ─────────────────────────────────────────────────────────
-socket.on("game:start", ({ gameId }) => {
-  gameRunning = true;
+// ── Game lifecycle ────────────────────────────────────────────────────────
+const loadedScripts = [];
+
+socket.on("game:start", async ({ gameId }) => {
+  // Load game's host HTML fragment
+  const html = await fetch(`/games/${gameId}/host.html`).then(r => r.text());
+  $("game-container").innerHTML = html;
+
+  // Load game's host JS — all socket listeners are registered by the time this resolves
+  await loadScript(`/games/${gameId}/host.js`);
+
+  showGame();
+
+  // Pull current game state from server now that our listeners are registered
+  socket.emit("host:ready");
 });
 
 socket.on("game:end", () => {
-  gameRunning = false;
-  showView("lobby");
+  // Unload game scripts
+  loadedScripts.forEach(s => s.remove());
+  loadedScripts.length = 0;
+  $("game-container").innerHTML = "";
+  showLobby();
 });
 
-// ── TRIVIA ─────────────────────────────────────────────────────────────────
-const COLORS = ["A","B","C","D"];
-let triviaTimer = null;
-
-socket.on("trivia:question", ({ index, total, question, choices }) => {
-  showView("trivia-view");
-  $("trivia-header").textContent = `Question ${index+1} / ${total}`;
-  $("trivia-question").textContent = question;
-  $("trivia-choices").innerHTML = choices.map((c, i) =>
-    `<div class="choice-btn ${COLORS[i]}">${COLORS[i]}. ${c}</div>`).join("");
-
-  // Timer bar animation
-  const fill = $("trivia-timer-fill");
-  fill.style.transition = "none";
-  fill.style.width = "100%";
-  requestAnimationFrame(() => {
-    fill.style.transition = "width 15s linear";
-    fill.style.width = "0%";
+function loadScript(src) {
+  return new Promise((resolve) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload  = resolve;
+    s.onerror = resolve; // don't block if optional
+    document.body.appendChild(s);
+    loadedScripts.push(s);
   });
-});
-
-socket.on("trivia:reveal", ({ correctIndex, scores }) => {
-  const btns = document.querySelectorAll(".choice-btn");
-  btns.forEach((b, i) => {
-    b.classList.add(i === correctIndex ? "correct" : "wrong");
-  });
-  setTimeout(() => {
-    showView("trivia-score-view");
-    renderScoreboard("scoreboard", scores);
-  }, 2000);
-});
-
-socket.on("trivia:gameover", ({ scores }) => {
-  showView("trivia-score-view");
-  renderScoreboard("scoreboard", scores);
-  $("trivia-score-view").querySelector(".big-title").textContent = "🏆 Final Scores!";
-});
-
-// ── DRAW & GUESS ────────────────────────────────────────────────────────────
-const canvas = $("draw-canvas");
-const ctx = canvas.getContext("2d");
-
-function clearCanvas() {
-  ctx.fillStyle = "white";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
-clearCanvas();
 
-socket.on("drawguess:round_start", ({ drawerName, round, total }) => {
-  showView("drawguess-view");
-  clearCanvas();
-  $("draw-header").textContent = `Round ${round}/${total} – ${drawerName} is drawing…`;
-  $("draw-label").textContent = "";
+// ── Game-controlled action button ─────────────────────────────────────────
+// Games can ask for a contextual button via socket events
+socket.on("host:show_action", ({ label, type }) => {
+  removeGameAction();
+  const btn = document.createElement("button");
+  btn.className   = "btn-game-action";
+  btn.id          = "btn-game-action";
+  btn.textContent = label;
+  btn.onclick     = () => socket.emit("host:action", { type });
+  document.body.appendChild(btn);
 });
 
-socket.on("drawguess:stroke", ({ stroke }) => {
-  if (!stroke || stroke.length < 2) return;
-  ctx.beginPath();
-  ctx.strokeStyle = stroke[0].color || "#222";
-  ctx.lineWidth   = stroke[0].size  || 4;
-  ctx.lineCap     = "round";
-  ctx.lineJoin    = "round";
-  ctx.moveTo(stroke[0].x * canvas.width, stroke[0].y * canvas.height);
-  for (let i = 1; i < stroke.length; i++) {
-    ctx.lineTo(stroke[i].x * canvas.width, stroke[i].y * canvas.height);
-  }
-  ctx.stroke();
-});
+socket.on("host:hide_action", removeGameAction);
 
-socket.on("drawguess:clear", clearCanvas);
-
-socket.on("drawguess:reveal", ({ word, correct, guesses, scores }) => {
-  $("draw-label").innerHTML =
-    `The word was: <strong style="color:var(--yellow);font-size:1.3rem">${word}</strong>` +
-    (correct.length ? ` — ✅ ${correct.join(", ")} got it!` : " — Nobody guessed it!");
-  setTimeout(() => {
-    renderScoreboard("draw-scoreboard", scores);
-    showView("draw-score-view");
-  }, 3000);
-});
-
-socket.on("drawguess:gameover", ({ scores }) => {
-  renderScoreboard("draw-scoreboard", scores);
-  showView("draw-score-view");
-  $("draw-score-view").querySelector(".big-title").textContent = "🏆 Final Scores!";
-});
+function removeGameAction() {
+  document.getElementById("btn-game-action")?.remove();
+}
 </script>
 </body>
 </html>

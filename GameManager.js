@@ -1,53 +1,42 @@
-/**
- * GameManager
- * -----------
- * Manages the lobby, player list, and delegates all game logic to
- * the currently active game module.
- *
- * A "game module" is any file in /games/ that exports an object with:
- *
- *   {
- *     id:          "my_game",          // unique key
- *     name:        "My Awesome Game",  // display name
- *     minPlayers:  2,
- *     maxPlayers:  8,
- *
- *     // Called once when the game starts. Use io/players to set up state.
- *     start({ io, players, endGame }),
- *
- *     // Called when a player sends a "player:action" event.
- *     onPlayerAction({ socket, player, payload, io, players, endGame }),
- *
- *     // Called when the host sends a "host:action" event.
- *     onHostAction({ socket, payload, io, players, endGame }),
- *   }
- */
-
-const fs   = require("fs");
-const path = require("path");
+const fs      = require("fs");
+const path    = require("path");
+const express = require("express");
 
 class GameManager {
-  constructor(io) {
-    this.io        = io;
-    this.players   = {};   // socketId -> { id, name, socket }
+  constructor(io, app) {
+    this.io         = io;
+    this.app        = app;
+    this.players    = {};   // socketId → { id, name, socket }
     this.hostSocket = null;
     this.activeGame = null;
     this.games      = this._loadGames();
   }
 
-  // ── Load all game modules from /games/ ──────────────────────────────────
+  // ── Auto-load every subfolder in /games/ that has a game.js ──────────────
   _loadGames() {
-    const dir = path.join(__dirname, "games");
+    const dir   = path.join(__dirname, "games");
     const games = {};
-    for (const file of fs.readdirSync(dir).filter(f => f.endsWith(".js"))) {
-      const game = require(path.join(dir, file));
+
+    for (const folder of fs.readdirSync(dir)) {
+      const gamePath = path.join(dir, folder);
+      if (!fs.statSync(gamePath).isDirectory()) continue;
+
+      const entryPoint = path.join(gamePath, "game.js");
+      if (!fs.existsSync(entryPoint)) continue;
+
+      const game = require(entryPoint);
       games[game.id] = game;
+
+      // Serve the game's own static assets (html, js, images…)
+      this.app.use(`/games/${game.id}`, express.static(gamePath));
+
       console.log(`  📦 Loaded game: ${game.name} (${game.id})`);
     }
+
     return games;
   }
 
-  // ── Helpers ─────────────────────────────────────────────────────────────
+  // ── Helpers ───────────────────────────────────────────────────────────────
   _playerList() {
     return Object.values(this.players).map(p => ({ id: p.id, name: p.name }));
   }
@@ -55,30 +44,32 @@ class GameManager {
   _broadcastLobby() {
     this.io.emit("lobby:update", {
       players: this._playerList(),
-      games: Object.values(this.games).map(g => ({
-        id: g.id, name: g.name,
-        minPlayers: g.minPlayers, maxPlayers: g.maxPlayers,
-      })),
+      games:   this._gameList(),
     });
+  }
+
+  _gameList() {
+    return Object.values(this.games).map(g => ({
+      id: g.id, name: g.name,
+      minPlayers: g.minPlayers, maxPlayers: g.maxPlayers,
+    }));
   }
 
   _ctx() {
     return {
-      io:       this.io,
-      players:  this.players,
-      endGame:  () => this.endGame(),
+      io:      this.io,
+      players: this.players,
+      endGame: () => this.endGame(),
     };
   }
 
-  // ── Lifecycle ────────────────────────────────────────────────────────────
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
   onHostConnect(socket) {
     this.hostSocket = socket;
+    socket.join("host");
     socket.emit("host:init", {
       players: this._playerList(),
-      games: Object.values(this.games).map(g => ({
-        id: g.id, name: g.name,
-        minPlayers: g.minPlayers, maxPlayers: g.maxPlayers,
-      })),
+      games:   this._gameList(),
     });
   }
 
@@ -89,8 +80,7 @@ class GameManager {
     socket.emit("player:joined", { id: socket.id, name: trimmed });
     this._broadcastLobby();
 
-    // If a game is running, let the game handle late joiners (optional)
-    if (this.activeGame && this.activeGame.onPlayerJoin) {
+    if (this.activeGame?.onPlayerJoin) {
       this.activeGame.onPlayerJoin({ socket, player: this.players[socket.id], ...this._ctx() });
     }
   }
@@ -114,9 +104,9 @@ class GameManager {
     if (this.hostSocket?.id === socket.id) this.hostSocket = null;
   }
 
-  // ── Game control ─────────────────────────────────────────────────────────
+  // ── Game control ──────────────────────────────────────────────────────────
   startGame(gameId) {
-    const game = this.games[gameId];
+    const game  = this.games[gameId];
     if (!game) return;
 
     const count = Object.keys(this.players).length;
@@ -127,15 +117,32 @@ class GameManager {
     }
 
     this.activeGame = game;
+
+    // Tell everyone a game is starting so they load their UI fragments.
+    // Neither host nor players receive game events yet — both pull their
+    // initial state once their UI is ready (host:ready / player:ready).
     this.io.emit("game:start", { gameId: game.id, gameName: game.name });
+
+    // Prepare game state without emitting anything
     game.start(this._ctx());
   }
 
-  endGame() {
-    if (this.activeGame && typeof this.activeGame.onEnd === "function") {
-      this.activeGame.onEnd(this._ctx());
+  // Called when the host shell finishes loading the game UI
+  onHostReady(socket) {
+    if (this.activeGame?.onHostReady) {
+      this.activeGame.onHostReady({ hostSocket: socket, ...this._ctx() });
     }
+  }
 
+  // Called when a player shell finishes loading the game UI
+  onPlayerReady(socket) {
+    const player = this.players[socket.id];
+    if (!player || !this.activeGame?.onPlayerReady) return;
+    this.activeGame.onPlayerReady({ socket, player, ...this._ctx() });
+  }
+
+  endGame() {
+    if (this.activeGame?.onEnd) this.activeGame.onEnd(this._ctx());
     this.activeGame = null;
     this.io.emit("game:end", {});
     this._broadcastLobby();

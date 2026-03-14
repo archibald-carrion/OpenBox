@@ -4,111 +4,114 @@ A fully local, self-hosted party game server. Plug your PC into a TV via HDMI, r
 
 The current version of the game is fully vibe-coded to get a quick MVP, but I intend to improve the current implementation in the future.
 
----
-
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
-# 1. Install dependencies (once)
 npm install
-
-# 2. Start the server
 npm start
 ```
 
-Then:
-- **TV / Host screen** → `http://localhost:3000/host`
-- **Players** scan the QR code shown on screen, or go to `http://<YOUR_IP>:3000/player`
+- **TV / Host:** `http://localhost:3000/host`
+- **Players:** scan the QR on screen or go to `http://<YOUR_IP>:3000/player`
 
 ---
 
-## 📦 Included Games
+## Adding a New Game
 
-| Game | Players | Description |
-|------|---------|-------------|
-| ⚡ Quick Trivia | 1–16 | Answer 6 multiple-choice questions, speed = more points |
-| 🎨 Draw & Guess | 2–10 | Take turns drawing a secret word while others guess |
+Just create a new folder in `/games/` — it's auto-discovered on startup:
+
+```
+games/
+└── mygame/
+    ├── game.js       ← server logic (required)
+    ├── host.html     ← host UI fragment (required)
+    ├── host.js       ← host UI logic (required)
+    ├── player.html   ← player UI fragment (required)
+    ├── player.js     ← player UI logic (required)
+    └── anything.png  ← any assets, served at /games/mygame/
+```
+
+**No other files need to be touched.** The shell loads your game's HTML/JS automatically when the host starts it.
 
 ---
 
-## ➕ Adding a New Game
-
-Create a file in `/games/your_game.js` — it just needs to export this shape:
+### game.js contract
 
 ```js
 module.exports = {
-  id:         "your_game",        // unique string key
-  name:       "🎯 Your Game",     // shown in the lobby
+  id:         "mygame",
+  name:       "🎯 My Game",
   minPlayers: 2,
   maxPlayers: 8,
 
-  // Called once when the host starts this game
-  start({ io, players, endGame }) {
-    // io      → Socket.IO server instance (broadcast with io.emit / io.to("host").emit)
-    // players → { [socketId]: { id, name, socket } }
-    // endGame → call this to return to lobby
-  },
+  // Called once when host starts the game
+  start({ io, players, endGame }) {},
 
-  // Called when any player sends a "player:action" event
-  onPlayerAction({ socket, player, payload, io, players, endGame }) {
-    // payload is whatever the player's browser sent
-  },
+  // Called on any player:action event from a player
+  onPlayerAction({ socket, player, payload, io, players, endGame }) {},
 
-  // Called when the host sends a "host:action" event
-  onHostAction({ socket, payload, io, players, endGame }) {
-    // e.g. { type: "skip" } to advance
-  },
+  // Called on any host:action event from the host
+  onHostAction({ socket, payload, io, players, endGame }) {},
 
-  // Optional: called when a player joins mid-game
+  // Optional: called when returning to lobby (cleanup timers etc.)
+  onEnd({ io, players }) {},
+
+  // Optional: called when a new player joins mid-game
   onPlayerJoin({ socket, player, io, players, endGame }) {},
 };
 ```
 
-The game file is **auto-loaded** on server start — no registration needed.
+### host.js / player.js
+
+`socket` is already connected and available as a global — just use it:
+
+```js
+// host.js or player.js
+socket.on("mygame:something", (data) => {
+  // update the DOM from your html fragment
+});
+```
+
+### Showing a contextual button on the host screen
+
+From your `game.js`, emit these to give the host a dynamic action button:
+
+```js
+io.to("host").emit("host:show_action", { label: "⏭ Skip", type: "skip" });
+io.to("host").emit("host:hide_action");
+```
+
+When clicked, the host shell fires `host:action` with `{ type: "skip" }` back to the server, which routes it to your `onHostAction`.
 
 ---
 
-## 🧩 Socket Event Reference
+## Socket Event Reference
 
-### Server → All clients
-| Event | Payload | Description |
-|-------|---------|-------------|
-| `lobby:update` | `{ players, games }` | Player list or game list changed |
-| `game:start` | `{ gameId, gameName }` | A game just started |
-| `game:end` | `{}` | Game ended, back to lobby |
+### Framework → All
+| Event | Payload | When |
+|---|---|---|
+| `lobby:update` | `{ players, games }` | Player joins/leaves |
+| `game:start` | `{ gameId, gameName }` | Host starts a game |
+| `game:end` | `{}` | Game ends / host force-ends |
 
-### Server → Host only (`io.to("host")`)
-| Event | Payload | Description |
-|-------|---------|-------------|
-| `host:init` | `{ players, games }` | Initial state on connection |
-| `host:error` | string | e.g. "not enough players" |
+### Framework → Host only
+| Event | Payload | When |
+|---|---|---|
+| `host:init` | `{ players, games }` | Host connects |
+| `host:error` | string | e.g. not enough players |
+| `host:show_action` | `{ label, type }` | Game wants a button shown |
+| `host:hide_action` | — | Game wants button removed |
 
-### Client (Host) → Server
-| Event | Payload | Description |
-|-------|---------|-------------|
-| `host:connect` | — | Register as host |
-| `host:start_game` | `{ gameId }` | Start a game |
-| `host:end_game` | — | Force return to lobby |
-| `host:action` | any | Game-specific host action |
+### Host → Framework
+| Event | Payload |
+|---|---|
+| `host:connect` | — |
+| `host:start_game` | `{ gameId }` |
+| `host:end_game` | — |
+| `host:action` | `{ type, ...any }` |
 
-### Client (Player) → Server
-| Event | Payload | Description |
-|-------|---------|-------------|
-| `player:join` | `{ name }` | Join the lobby |
-| `player:action` | any | Game-specific player action |
-
----
-
-## 🗂 Project Structure
-
-```
-partygames/
-├── server.js          ← Entry point (Express + Socket.IO)
-├── GameManager.js     ← Lobby, player management, game routing
-├── games/
-│   ├── trivia.js      ← Quick Trivia game
-│   └── drawguess.js   ← Draw & Guess game
-└── public/
-    ├── host/          ← TV display (index.html)
-    └── player/        ← Mobile player UI (index.html)
-```
+### Player → Framework
+| Event | Payload |
+|---|---|
+| `player:join` | `{ name }` |
+| `player:action` | `{ type, ...any }` |
