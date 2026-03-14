@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Party Games – Player</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;800&display=swap');
+
+  :root {
+    --bg: #0f0e17;
+    --panel: #1a1830;
+    --accent: #ff6b35;
+    --yellow: #ffd166;
+    --green: #06d6a0;
+    --blue: #118ab2;
+    --pink: #ef476f;
+    --text: #fffffe;
+    --muted: #a8a4c0;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  h1 {
+    font-family: 'Fredoka One', cursive;
+    color: var(--accent);
+    font-size: 2rem;
+    margin-bottom: 8px;
+  }
+
+  .subtitle { color: var(--muted); margin-bottom: 28px; font-size: 1rem; }
+
+  input[type=text] {
+    width: 100%;
+    max-width: 320px;
+    padding: 14px 18px;
+    border-radius: 14px;
+    border: 2px solid #2a2845;
+    background: var(--panel);
+    color: var(--text);
+    font-family: 'Nunito', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+    outline: none;
+    text-align: center;
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  input[type=text]:focus { border-color: var(--accent); }
+
+  .btn {
+    display: block;
+    width: 100%;
+    max-width: 320px;
+    padding: 16px;
+    border-radius: 50px;
+    border: none;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.3rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 4px 20px rgba(255,107,53,0.35);
+  }
+
+  .btn-primary:active { transform: scale(0.97); }
+
+  .view { width: 100%; max-width: 400px; text-align: center; }
+  .hidden { display: none !important; }
+
+  /* Waiting screen */
+  #waiting-view .name-badge {
+    font-family: 'Fredoka One', cursive;
+    font-size: 2.5rem;
+    color: var(--yellow);
+    margin: 16px 0;
+  }
+
+  .pulse {
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    background: rgba(255,107,53,0.2);
+    border: 3px solid var(--accent);
+    margin: 0 auto 16px;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { transform: scale(1); opacity: 1; }
+    50%      { transform: scale(1.2); opacity: 0.6; }
+  }
+
+  /* Trivia choices */
+  #trivia-choices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .trivia-btn {
+    padding: 18px 10px;
+    border-radius: 14px;
+    border: 2px solid transparent;
+    font-family: 'Nunito', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: white;
+  }
+
+  .trivia-btn:active { transform: scale(0.95); }
+
+  .trivia-btn.A { background: var(--pink);   border-color: var(--pink); }
+  .trivia-btn.B { background: var(--blue);   border-color: var(--blue); }
+  .trivia-btn.C { background: #e9c46a;       border-color: #e9c46a; color: #333; }
+  .trivia-btn.D { background: var(--green);  border-color: var(--green); color: #111; }
+
+  .trivia-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .trivia-btn.correct  { box-shadow: 0 0 20px rgba(6,214,160,0.6); transform: scale(1.05); }
+  .trivia-btn.wrong    { opacity: 0.3; }
+
+  #trivia-status {
+    margin-top: 16px;
+    font-size: 1.2rem;
+    font-weight: 800;
+    min-height: 32px;
+  }
+
+  /* Draw & Guess */
+  #draw-canvas {
+    border-radius: 12px;
+    border: 2px solid var(--accent);
+    background: white;
+    touch-action: none;
+    display: block;
+    margin: 12px auto;
+    max-width: 100%;
+  }
+
+  #draw-word {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.8rem;
+    color: var(--yellow);
+    margin-bottom: 8px;
+    word-break: break-word;
+  }
+
+  .draw-tools {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+
+  .color-swatch {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+
+  .color-swatch.active { border-color: white; transform: scale(1.2); }
+
+  .size-btn {
+    background: var(--panel);
+    border: 2px solid #2a2845;
+    color: white;
+    border-radius: 10px;
+    padding: 6px 14px;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+
+  .size-btn.active { border-color: var(--accent); background: rgba(255,107,53,0.15); }
+
+  #btn-clear {
+    background: var(--pink);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 18px;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+
+  /* Guess input */
+  #guess-form {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    width: 100%;
+  }
+
+  #guess-input {
+    flex: 1;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 2px solid #2a2845;
+    background: var(--panel);
+    color: var(--text);
+    font-family: 'Nunito', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    outline: none;
+  }
+
+  #guess-input:focus { border-color: var(--accent); }
+
+  #btn-guess {
+    padding: 12px 18px;
+    border-radius: 12px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+
+  .big-emoji { font-size: 4rem; margin-bottom: 12px; display: block; }
+  .big-msg   { font-family: 'Fredoka One', cursive; font-size: 1.6rem; color: var(--yellow); }
+  .sub-msg   { color: var(--muted); margin-top: 8px; font-size: 0.95rem; }
+</style>
+</head>
+<body>
+
+<!-- JOIN -->
+<div id="join-view" class="view">
+  <h1>🎮 Party Games</h1>
+  <p class="subtitle">Enter your name to join</p>
+  <input type="text" id="name-input" placeholder="Your name" maxlength="20" autocomplete="off">
+  <button class="btn btn-primary" id="btn-join">Join Game</button>
+</div>
+
+<!-- WAITING -->
+<div id="waiting-view" class="view hidden">
+  <div class="pulse"></div>
+  <p style="color:var(--muted)">You're in!</p>
+  <div class="name-badge" id="display-name"></div>
+  <p style="color:var(--muted);font-size:0.9rem">Waiting for the host to start…</p>
+</div>
+
+<!-- TRIVIA QUESTION -->
+<div id="trivia-view" class="view hidden">
+  <p style="color:var(--muted);font-size:0.85rem;margin-bottom:8px" id="trivia-prog"></p>
+  <p style="font-weight:800;font-size:1.15rem;line-height:1.4;margin-bottom:4px" id="trivia-q"></p>
+  <div id="trivia-choices"></div>
+  <div id="trivia-status"></div>
+</div>
+
+<!-- DRAW - you are drawing -->
+<div id="draw-view" class="view hidden">
+  <div id="draw-word"></div>
+  <canvas id="draw-canvas" width="340" height="260"></canvas>
+  <div class="draw-tools">
+    <div class="color-swatch active" style="background:#222222" data-color="#222222"></div>
+    <div class="color-swatch" style="background:#e63946" data-color="#e63946"></div>
+    <div class="color-swatch" style="background:#2196f3" data-color="#2196f3"></div>
+    <div class="color-swatch" style="background:#4caf50" data-color="#4caf50"></div>
+    <div class="color-swatch" style="background:#ff9800" data-color="#ff9800"></div>
+    <div class="color-swatch" style="background:#ffffff" data-color="#ffffff"></div>
+    <button class="size-btn active" data-size="4">S</button>
+    <button class="size-btn" data-size="10">M</button>
+    <button class="size-btn" data-size="22">L</button>
+    <button id="btn-clear">🗑 Clear</button>
+  </div>
+</div>
+
+<!-- DRAW - you are guessing -->
+<div id="guess-view" class="view hidden">
+  <span class="big-emoji">🤔</span>
+  <div class="big-msg" id="guess-drawer"></div>
+  <p class="sub-msg">is drawing… what is it?</p>
+  <div id="guess-form">
+    <input type="text" id="guess-input" placeholder="Your guess…" autocomplete="off">
+    <button id="btn-guess">→</button>
+  </div>
+  <p id="guess-sent" class="sub-msg" style="margin-top:12px;min-height:20px"></p>
+</div>
+
+<!-- WAITING BETWEEN ROUNDS -->
+<div id="between-view" class="view hidden">
+  <span class="big-emoji" id="between-emoji">⏳</span>
+  <div class="big-msg" id="between-msg">Next round soon…</div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+const $ = id => document.getElementById(id);
+
+function showView(id) {
+  ["join-view","waiting-view","trivia-view","draw-view","guess-view","between-view"]
+    .forEach(v => $(v).classList.add("hidden"));
+  $(id).classList.remove("hidden");
+}
+
+// ── Join ──────────────────────────────────────────────────────────────────
+$("btn-join").onclick = () => {
+  const name = $("name-input").value.trim();
+  if (!name) return;
+  socket.emit("player:join", { name });
+};
+
+$("name-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") $("btn-join").click();
+});
+
+socket.on("player:joined", ({ name }) => {
+  $("display-name").textContent = name;
+  showView("waiting-view");
+});
+
+// ── Game lifecycle ────────────────────────────────────────────────────────
+socket.on("game:end", () => showView("waiting-view"));
+
+// ── TRIVIA ────────────────────────────────────────────────────────────────
+const COLORS = ["A","B","C","D"];
+
+socket.on("trivia:question", ({ index, total, question, choices }) => {
+  showView("trivia-view");
+  $("trivia-prog").textContent = `Question ${index+1} of ${total}`;
+  $("trivia-q").textContent = question;
+  $("trivia-status").textContent = "";
+
+  const container = $("trivia-choices");
+  container.innerHTML = choices.map((c, i) =>
+    `<button class="trivia-btn ${COLORS[i]}" data-idx="${i}">${COLORS[i]}. ${c}</button>`
+  ).join("");
+
+  container.querySelectorAll(".trivia-btn").forEach(btn => {
+    btn.onclick = () => {
+      container.querySelectorAll(".trivia-btn").forEach(b => b.disabled = true);
+      socket.emit("player:action", { type: "answer", choice: +btn.dataset.idx });
+    };
+  });
+});
+
+socket.on("trivia:ack", ({ correct }) => {
+  $("trivia-status").textContent = correct ? "✅ Correct!" : "❌ Wrong!";
+  $("trivia-status").style.color = correct ? "var(--green)" : "var(--pink)";
+});
+
+socket.on("trivia:reveal", () => {
+  $("trivia-choices").querySelectorAll(".trivia-btn").forEach(b => b.disabled = true);
+});
+
+socket.on("trivia:gameover", () => {
+  showView("between-view");
+  $("between-emoji").textContent = "🏆";
+  $("between-msg").textContent = "Game over! Check the TV!";
+});
+
+// ── DRAW & GUESS ──────────────────────────────────────────────────────────
+const canvas = $("draw-canvas");
+const ctx = canvas.getContext("2d");
+let drawing = false;
+let currentStroke = [];
+let currentColor = "#222222";
+let currentSize  = 4;
+
+function clearCanvas() {
+  ctx.fillStyle = "white";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+clearCanvas();
+
+// Color swatches
+document.querySelectorAll(".color-swatch").forEach(sw => {
+  sw.onclick = () => {
+    document.querySelectorAll(".color-swatch").forEach(s => s.classList.remove("active"));
+    sw.classList.add("active");
+    currentColor = sw.dataset.color;
+  };
+});
+
+// Size buttons
+document.querySelectorAll(".size-btn").forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll(".size-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentSize = +btn.dataset.size;
+  };
+});
+
+$("btn-clear").onclick = () => {
+  clearCanvas();
+  socket.emit("player:action", { type: "clear" });
+};
+
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const src  = e.touches ? e.touches[0] : e;
+  return {
+    x: (src.clientX - rect.left)  / rect.width,
+    y: (src.clientY - rect.top)   / rect.height,
+    color: currentColor,
+    size:  currentSize,
+  };
+}
+
+function startDraw(e) {
+  e.preventDefault();
+  drawing = true;
+  currentStroke = [];
+  const p = getPos(e);
+  currentStroke.push(p);
+  ctx.beginPath();
+  ctx.strokeStyle = p.color;
+  ctx.lineWidth   = p.size;
+  ctx.lineCap     = "round";
+  ctx.lineJoin    = "round";
+  ctx.moveTo(p.x * canvas.width, p.y * canvas.height);
+}
+
+function moveDraw(e) {
+  if (!drawing) return;
+  e.preventDefault();
+  const p = getPos(e);
+  currentStroke.push(p);
+  ctx.lineTo(p.x * canvas.width, p.y * canvas.height);
+  ctx.stroke();
+}
+
+function endDraw(e) {
+  if (!drawing) return;
+  drawing = false;
+  if (currentStroke.length > 0) {
+    socket.emit("player:action", { type: "stroke", stroke: currentStroke });
+  }
+}
+
+canvas.addEventListener("mousedown",  startDraw);
+canvas.addEventListener("mousemove",  moveDraw);
+canvas.addEventListener("mouseup",    endDraw);
+canvas.addEventListener("touchstart", startDraw, { passive: false });
+canvas.addEventListener("touchmove",  moveDraw,  { passive: false });
+canvas.addEventListener("touchend",   endDraw);
+
+socket.on("drawguess:you_draw", ({ word }) => {
+  showView("draw-view");
+  clearCanvas();
+  $("draw-word").textContent = `Draw: ${word}`;
+});
+
+socket.on("drawguess:guess_phase", ({ drawerName }) => {
+  showView("guess-view");
+  $("guess-drawer").textContent = drawerName;
+  $("guess-sent").textContent = "";
+  $("guess-input").value = "";
+});
+
+$("btn-guess").onclick = sendGuess;
+$("guess-input").addEventListener("keydown", e => { if (e.key === "Enter") sendGuess(); });
+
+function sendGuess() {
+  const text = $("guess-input").value.trim();
+  if (!text) return;
+  socket.emit("player:action", { type: "guess", text });
+  $("guess-input").value = "";
+  $("guess-sent").textContent = `✅ Guess sent: "${text}"`;
+}
+
+socket.on("drawguess:guess_ack", () => {
+  // acknowledged
+});
+
+socket.on("drawguess:reveal", ({ word }) => {
+  showView("between-view");
+  $("between-emoji").textContent = "🎨";
+  $("between-msg").textContent = `The word was: ${word}`;
+});
+
+socket.on("drawguess:round_start", () => {
+  showView("between-view");
+  $("between-emoji").textContent = "⏳";
+  $("between-msg").textContent = "Next round starting…";
+});
+
+socket.on("drawguess:gameover", () => {
+  showView("between-view");
+  $("between-emoji").textContent = "🏆";
+  $("between-msg").textContent = "Game over! Check the TV!";
+});
+</script>
+</body>
+</html>
