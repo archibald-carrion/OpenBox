@@ -1,0 +1,184 @@
+<style>
+  #pw-host { width: 100%; text-align: center; }
+
+  .pw-title {
+    font-family: 'Fredoka One', cursive;
+    font-size: 2.2rem;
+    color: var(--yellow);
+    margin-bottom: 6px;
+  }
+
+  .pw-sub { color: var(--muted); font-size: 1rem; margin-bottom: 20px; }
+
+  /* Writing phase */
+  #pw-writing-panel { padding: 20px 0; }
+
+  .pw-answer-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 16px;
+  }
+
+  .pw-answer-pill {
+    background: rgba(6,214,160,0.15);
+    border: 2px solid var(--green);
+    border-radius: 50px;
+    padding: 8px 20px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--green);
+    animation: popIn 0.3s ease both;
+  }
+
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(0.8); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  /* Judging phase */
+  #pw-judging-panel { max-width: 800px; margin: 0 auto; }
+
+  .pw-prompt-box {
+    background: var(--panel);
+    border: 2px solid var(--accent);
+    border-radius: 16px;
+    padding: 24px 32px;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 24px;
+    line-height: 1.4;
+  }
+
+  .pw-answers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .pw-answer-card {
+    background: var(--panel);
+    border: 2px solid #2a2845;
+    border-radius: 14px;
+    padding: 18px 16px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.4;
+    position: relative;
+  }
+
+  .pw-answer-card .answer-prompt { font-size:0.75rem; color:var(--muted); display:block; margin-bottom:4px; font-weight:400; }
+  .pw-answer-card .answer-text { font-weight:700; display:block; }
+  .pw-answer-card .answer-letter {
+    font-family: 'Fredoka One', cursive;
+    font-size: 0.85rem;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  /* Vote progress */
+  .pw-vote-bar-wrap {
+    height: 8px;
+    background: #2a2845;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+
+  #pw-vote-bar { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.4s; width: 0%; }
+  #pw-vote-count { color: var(--muted); font-size: 0.9rem; }
+
+  /* Prompt result */
+  #pw-result-panel { max-width: 700px; margin: 0 auto; }
+
+  .pw-result-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--panel);
+    border-radius: 14px;
+    padding: 14px 20px;
+    margin-bottom: 10px;
+    animation: slideIn 0.4s ease both;
+    text-align: left;
+  }
+
+  .pw-result-row:first-child {
+    border: 2px solid var(--yellow);
+  }
+
+  .pw-result-votes {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.4rem;
+    color: var(--yellow);
+    flex-shrink: 0;
+    width: 48px;
+    text-align: center;
+  }
+
+  .pw-result-prompt-mini { font-size:0.75rem; color:var(--muted); margin-bottom:2px; font-weight:400; }
+  .pw-result-name { font-size: 0.8rem; color: var(--accent); margin-top:4px; font-weight:700; }
+  .pw-result-answer { font-weight: 800; font-size: 1rem; }
+
+  /* Scoreboard */
+  #pw-scores-panel { max-width: 520px; margin: 0 auto; }
+
+  .score-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    animation: slideIn 0.4s ease both;
+  }
+
+  .score-row:nth-child(1) { border-left: 4px solid var(--yellow); }
+  .score-row:nth-child(2) { border-left: 4px solid var(--muted); }
+  .score-row:nth-child(3) { border-left: 4px solid #cd7f32; }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-20px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+</style>
+
+<div id="pw-host">
+
+  <!-- WRITING PHASE -->
+  <div id="pw-writing-panel">
+    <div class="pw-title" id="pw-writing-title">Round 1 / 5</div>
+    <div class="pw-sub">Everyone is writing their funniest answer…</div>
+    <div id="pw-answered-list" class="pw-answer-list"></div>
+  </div>
+
+  <!-- JUDGING PHASE -->
+  <div id="pw-judging-panel" style="display:none">
+    <div class="pw-sub" id="pw-judging-sub"></div>
+    <div class="pw-prompt-box" id="pw-prompt"></div>
+    <div class="pw-answers-grid" id="pw-answers-grid"></div>
+    <div class="pw-vote-bar-wrap"><div id="pw-vote-bar"></div></div>
+    <div id="pw-vote-count"></div>
+  </div>
+
+  <!-- PROMPT RESULT -->
+  <div id="pw-result-panel" style="display:none">
+    <div class="pw-title">Results!</div>
+    <div class="pw-sub" id="pw-result-prompt"></div>
+    <div id="pw-result-list"></div>
+  </div>
+
+  <!-- ROUND SCORES -->
+  <div id="pw-scores-panel" style="display:none">
+    <div class="pw-title" id="pw-scores-title">After Round 1</div>
+    <div id="pw-scoreboard"></div>
+  </div>
+
+</div>
