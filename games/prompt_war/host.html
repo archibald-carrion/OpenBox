@@ -18,7 +18,7 @@
     flex-wrap: wrap;
     gap: 10px;
     justify-content: center;
-    margin-top: 16px;
+    margin-top: 12px;
   }
 
   .pw-answer-pill {
@@ -54,8 +54,8 @@
 
   .pw-answers-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 14px;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
     margin-bottom: 20px;
   }
 
@@ -63,24 +63,21 @@
     background: var(--panel);
     border: 2px solid #2a2845;
     border-radius: 14px;
-    padding: 18px 16px;
-    font-size: 1.1rem;
+    padding: 20px 18px;
+    font-size: 1.15rem;
     font-weight: 700;
     line-height: 1.4;
-    position: relative;
+    text-align: left;
   }
 
-  .pw-answer-card .answer-prompt { font-size:0.75rem; color:var(--muted); display:block; margin-bottom:4px; font-weight:400; }
-  .pw-answer-card .answer-text { font-weight:700; display:block; }
   .pw-answer-card .answer-letter {
     font-family: 'Fredoka One', cursive;
-    font-size: 0.85rem;
-    color: var(--muted);
+    font-size: 1.2rem;
+    color: var(--accent);
     display: block;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
 
-  /* Vote progress */
   .pw-vote-bar-wrap {
     height: 8px;
     background: #2a2845;
@@ -92,37 +89,34 @@
   #pw-vote-bar { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.4s; width: 0%; }
   #pw-vote-count { color: var(--muted); font-size: 0.9rem; }
 
-  /* Prompt result */
+  /* Result */
   #pw-result-panel { max-width: 700px; margin: 0 auto; }
 
   .pw-result-row {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     background: var(--panel);
     border-radius: 14px;
-    padding: 14px 20px;
+    padding: 16px 20px;
     margin-bottom: 10px;
     animation: slideIn 0.4s ease both;
     text-align: left;
   }
 
-  .pw-result-row:first-child {
-    border: 2px solid var(--yellow);
-  }
+  .pw-result-row:first-child { border: 2px solid var(--yellow); }
 
   .pw-result-votes {
     font-family: 'Fredoka One', cursive;
-    font-size: 1.4rem;
+    font-size: 1.6rem;
     color: var(--yellow);
     flex-shrink: 0;
     width: 48px;
     text-align: center;
   }
 
-  .pw-result-prompt-mini { font-size:0.75rem; color:var(--muted); margin-bottom:2px; font-weight:400; }
-  .pw-result-name { font-size: 0.8rem; color: var(--accent); margin-top:4px; font-weight:700; }
-  .pw-result-answer { font-weight: 800; font-size: 1rem; }
+  .pw-result-answer { font-weight: 800; font-size: 1.05rem; }
+  .pw-result-name   { font-size: 0.85rem; color: var(--accent); margin-top: 4px; font-weight: 700; }
 
   /* Scoreboard */
   #pw-scores-panel { max-width: 520px; margin: 0 auto; }
@@ -154,12 +148,13 @@
 
   <!-- WRITING PHASE -->
   <div id="pw-writing-panel">
-    <div class="pw-title" id="pw-writing-title">Round 1 / 5</div>
-    <div class="pw-sub">Everyone is writing their funniest answer…</div>
+    <div class="pw-title" id="pw-writing-title">Everyone is writing…</div>
+    <div class="pw-sub" id="pw-writing-judge"></div>
+    <div id="pw-writing-count" style="color:var(--muted);font-size:0.9rem;margin-bottom:8px"></div>
     <div id="pw-answered-list" class="pw-answer-list"></div>
   </div>
 
-  <!-- JUDGING PHASE -->
+  <!-- MATCHUP VOTING -->
   <div id="pw-judging-panel" style="display:none">
     <div class="pw-sub" id="pw-judging-sub"></div>
     <div class="pw-prompt-box" id="pw-prompt"></div>
@@ -168,16 +163,16 @@
     <div id="pw-vote-count"></div>
   </div>
 
-  <!-- PROMPT RESULT -->
+  <!-- MATCHUP RESULT -->
   <div id="pw-result-panel" style="display:none">
-    <div class="pw-title">Results!</div>
+    <div class="pw-title">Result!</div>
     <div class="pw-sub" id="pw-result-prompt"></div>
     <div id="pw-result-list"></div>
   </div>
 
-  <!-- ROUND SCORES -->
+  <!-- FINAL SCORES -->
   <div id="pw-scores-panel" style="display:none">
-    <div class="pw-title" id="pw-scores-title">After Round 1</div>
+    <div class="pw-title">Final Scores!</div>
     <div id="pw-scoreboard"></div>
   </div>
 

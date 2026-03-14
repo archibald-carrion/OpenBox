@@ -1,56 +1,17 @@
 /**
- * GAME: Prompt war
- * ----------
- * Players are paired each round. Both players in a pair answer the same prompt.
- * Everyone else (including the odd-player-out who rotates each round) votes.
- * Authors hidden until reveal. 5 rounds, highest score wins.
- *
- * With N players: floor(N/2) pairs per round.
- * If N is odd, one player sits out of writing (rotates each round) and only votes.
- * Everyone answers the same number of prompts across the game.
+ * GAME: Prompt War
+ * ----------------
+ * Each player answers PROMPTS_PER_PLAYER prompts (default 2).
+ * Pairings are reshuffled each batch so you face different opponents.
+ * All writing happens simultaneously upfront.
+ * Then every matchup is voted on one by one.
+ * Authors hidden until each reveal.
  */
 
-const PROMPTS = [
-  "The worst thing to say on a first date: ___",
-  "A terrible name for a baby: ___",
-  "What's actually inside a black hole: ___",
-  "The world's worst superpower: ___",
-  "A bad thing to whisper at a funeral: ___",
-  "The rejected 8th dwarf: ___",
-  "What the dog is actually thinking: ___",
-  "A terrible ice cream flavor: ___",
-  "The worst job interview answer ever: ___",
-  "Something you shouldn't 3D print: ___",
-  "A bad name for a restaurant: ___",
-  "What aliens think humans are for: ___",
-  "The worst thing to put on a pizza: ___",
-  "A terrible motivational poster: ___",
-  "What's really at the end of a rainbow: ___",
-  "The worst advice a doctor could give: ___",
-  "A bad tagline for a country: ___",
-  "What the moon smells like: ___",
-  "A terrible app idea: ___",
-  "The worst thing to say meeting the parents: ___",
-  "A rejected Olympic sport: ___",
-  "What dinosaurs really went extinct from: ___",
-  "The worst fortune cookie message: ___",
-  "A bad name for a law firm: ___",
-  "What's really in the Bermuda Triangle: ___",
-  "The worst superhero catchphrase: ___",
-  "A terrible theme for a wedding: ___",
-  "A bad slogan for a hospital: ___",
-  "The worst thing to find in your cereal: ___",
-  "A terrible children's book title: ___",
-  "The worst thing to name a boat: ___",
-  "A bad title for a self-help book: ___",
-  "What Santa does in July: ___",
-  "The least intimidating gang name: ___",
-  "A terrible password: ___",
-];
-
-const ROUNDS      = 5;
-const ANSWER_TIME = 60;
-const VOTE_TIME   = 30;
+const PROMPTS           = require('./assets/prompts.json');
+const PROMPTS_PER_PLAYER = 2;   // how many prompts each player answers
+const ANSWER_TIME        = 60;  // seconds to write all answers
+const VOTE_TIME          = 30;  // seconds to vote per matchup
 
 let state    = {};
 let _endGame = null;
@@ -67,34 +28,32 @@ const game = {
     state = {
       players, io,
       phase:        "waiting",
-      round:        0,
       scores:       Object.fromEntries(playerIds.map(id => [id, 0])),
-      // Who sits out this round (rotates for odd player counts)
-      sittingOut:   null,
-      sittingOutIndex: 0,
-      // Per-round
-      pairs:        [],   // [{ prompt, playerA, playerB }]
-      answers:      {},   // socketId -> answer text
+
+      // pairs is a flat list of all matchups
+      // each pair: { prompt, playerA, playerB, pairId }
+      pairs:        [],
+
+      // answers keyed by `${pairId}:${socketId}`
+      answers:      {},
+
+      // total number of answer slots to fill (pairs.length * 2)
+      totalAnswers: 0,
+
       judgeIndex:   0,
-      votes:        {},   // socketId -> "A" | "B"
+      votes:        {},
       timer:        null,
       readyPlayers: new Set(),
-      usedPrompts:  new Set(),
     };
   },
 
   onHostReady({ hostSocket }) {
     if (state.phase === "writing") {
       hostSocket.emit("promptwar:writing_phase", {
-        round: state.round, total: ROUNDS,
-        pairCount: state.pairs.length,
+        totalMatchups: state.pairs.length,
+        answered:      Object.keys(state.answers).length,
+        totalAnswers:  state.totalAnswers,
       });
-      const answered = Object.keys(state.answers);
-      if (answered.length) {
-        hostSocket.emit("promptwar:answer_progress", {
-          answeredNames: answered.map(id => state.players[id]?.name ?? "?"),
-        });
-      }
     }
   },
 
@@ -103,137 +62,172 @@ const game = {
     const total = Object.keys(state.players).length;
     if (state.readyPlayers.size >= total && state.phase === "waiting") {
       state.phase = "writing";
-      game._startRound();
+      game._startWriting();
     }
-    // Rejoin mid writing phase
     if (state.phase === "writing") {
-      const pair = state.pairs.find(p => p.playerA === socket.id || p.playerB === socket.id);
-      if (pair) {
-        socket.emit("promptwar:your_prompt", { prompt: pair.prompt, timeLimit: ANSWER_TIME });
-      } else {
-        // This player is sitting out this round
-        socket.emit("promptwar:sitting_out", { message: "You're the judge this round — just vote!" });
-      }
+      // Resend all prompts this player needs to answer
+      game._sendPromptsToPlayer(socket);
     }
   },
 
-  _startRound() {
+  _buildPairs() {
+    const playerIds  = [...Object.keys(state.players)];
+    const n          = playerIds.length;
+    const allPairs   = [];
+    let   pairCounter = 0;
+
+    // We need each player to appear in exactly PROMPTS_PER_PLAYER pairs.
+    // Strategy: run PROMPTS_PER_PLAYER pairing passes.
+    // Each pass pairs everyone using a shuffle, ensuring no one sits out.
+    // For odd N: add a "bye" slot so the list is even, then redistribute
+    // the bye player into an existing pair as a triple (A vs B vs C voted separately —
+    // but here we just re-run until everyone gets their quota).
+    //
+    // Simpler guaranteed approach:
+    //   - Track how many pairs each player still needs (quota = PROMPTS_PER_PLAYER)
+    //   - Repeatedly pick the two players with the highest remaining quota and pair them
+    //   - Shuffle to avoid always pairing the same people
+    //   - Continue until all quotas are 0
+
+    const quota = Object.fromEntries(playerIds.map(id => [id, PROMPTS_PER_PLAYER]));
+
+    // Safety cap: at most N * PROMPTS_PER_PLAYER / 2 pairs
+    const maxPairs = Math.ceil(n * PROMPTS_PER_PLAYER / 2);
+    let attempts   = 0;
+
+    while (attempts++ < 1000) {
+      // Players still needing pairs, sorted by remaining quota desc then shuffled for variety
+      const needing = playerIds
+        .filter(id => quota[id] > 0)
+        .sort((a, b) => quota[b] - quota[a] || Math.random() - 0.5);
+
+      if (needing.length < 2) break;
+
+      // Pick top two — but avoid repeating a pair we already made if possible
+      let playerA = needing[0];
+      let playerB = null;
+
+      // Find a partner: prefer someone we haven't faced yet
+      const alreadyFaced = new Set(
+        allPairs
+          .filter(p => p.playerA === playerA || p.playerB === playerA)
+          .map(p => p.playerA === playerA ? p.playerB : p.playerA)
+      );
+
+      for (const candidate of needing.slice(1)) {
+        if (!alreadyFaced.has(candidate)) { playerB = candidate; break; }
+      }
+      // If everyone was already faced, just pick anyone
+      if (!playerB) playerB = needing[1];
+
+      allPairs.push({
+        pairId:  `p${pairCounter++}`,
+        prompt:  null,
+        playerA,
+        playerB,
+      });
+
+      quota[playerA]--;
+      quota[playerB]--;
+
+      if (allPairs.length >= maxPairs) break;
+    }
+
+    // Assign unique prompts
+    const prompts = _pickPrompts(allPairs.length);
+    allPairs.forEach((p, i) => { p.prompt = prompts[i]; });
+
+    return allPairs;
+  },
+
+  _startWriting() {
     const { io, players } = state;
-    state.round++;
-    state.answers    = {};
-    state.votes      = {};
-    state.judgeIndex = 0;
-    state.pairs      = [];
 
-    const playerIds = Object.keys(players);
-    const isOdd     = playerIds.length % 2 === 1;
+    state.pairs       = game._buildPairs();
+    state.totalAnswers = state.pairs.length * 2;
+    state.answers     = {};
 
-    // Rotate who sits out for odd player counts
-    let activeIds = [...playerIds];
-    if (isOdd) {
-      state.sittingOut = playerIds[state.sittingOutIndex % playerIds.length];
-      state.sittingOutIndex++;
-      activeIds = activeIds.filter(id => id !== state.sittingOut);
-    } else {
-      state.sittingOut = null;
-    }
-
-    // Shuffle active players and pair them
-    activeIds.sort(() => Math.random() - 0.5);
-    const prompts = _pickPrompts(activeIds.length / 2, state.usedPrompts);
-
-    for (let i = 0; i < activeIds.length; i += 2) {
-      const prompt = prompts[i / 2];
-      state.usedPrompts.add(prompt);
-      state.pairs.push({ prompt, playerA: activeIds[i], playerB: activeIds[i + 1] });
-    }
-
-    // Tell host
     io.to("host").emit("promptwar:writing_phase", {
-      round: state.round, total: ROUNDS,
-      pairCount: state.pairs.length,
-      sittingOutName: state.sittingOut ? players[state.sittingOut]?.name : null,
+      totalMatchups: state.pairs.length,
+      answered:      0,
+      totalAnswers:  state.totalAnswers,
     });
 
-    // Send prompts ONLY to the two players in each pair
-    state.pairs.forEach(pair => {
-      players[pair.playerA]?.socket.emit("promptwar:your_prompt", {
-        prompt: pair.prompt, timeLimit: ANSWER_TIME,
-      });
-      players[pair.playerB]?.socket.emit("promptwar:your_prompt", {
-        prompt: pair.prompt, timeLimit: ANSWER_TIME,
-      });
+    // Send each player all their prompts at once
+    Object.keys(players).forEach(id => {
+      game._sendPromptsToPlayer(players[id].socket);
     });
 
-    // Sitting-out player is informed
-    if (state.sittingOut) {
-      players[state.sittingOut]?.socket.emit("promptwar:sitting_out", {
-        message: "You're the judge this round — just vote!",
-      });
-    }
-
-    state.phase = "writing";
     clearTimeout(state.timer);
-    state.timer = setTimeout(() => game._startJudging(), ANSWER_TIME * 1000);
+    state.timer = setTimeout(() => game._startVoting(), ANSWER_TIME * 1000);
+  },
+
+  _sendPromptsToPlayer(socket) {
+    const myPairs = state.pairs.filter(
+      p => p.playerA === socket.id || p.playerB === socket.id
+    );
+    socket.emit("promptwar:your_prompts", {
+      prompts:   myPairs.map(p => ({ pairId: p.pairId, prompt: p.prompt })),
+      timeLimit: ANSWER_TIME,
+    });
   },
 
   _allAnswered() {
-    return state.pairs.every(p =>
-      state.answers[p.playerA] && state.answers[p.playerB]
-    );
+    return Object.keys(state.answers).length >= state.totalAnswers;
   },
 
-  _startJudging() {
+  _startVoting() {
     clearTimeout(state.timer);
-    state.phase = "judging";
 
-    // Fill in blanks for players who didn't answer in time
+    // Fill blanks
     state.pairs.forEach(p => {
-      if (!state.answers[p.playerA]) state.answers[p.playerA] = "...";
-      if (!state.answers[p.playerB]) state.answers[p.playerB] = "...";
+      const keyA = `${p.pairId}:${p.playerA}`;
+      const keyB = `${p.pairId}:${p.playerB}`;
+      if (!state.answers[keyA]) state.answers[keyA] = "...";
+      if (!state.answers[keyB]) state.answers[keyB] = "...";
     });
 
-    game._judgeNext();
+    state.phase      = "voting";
+    state.judgeIndex = 0;
+    game._nextMatchup();
   },
 
-  _judgeNext() {
+  _nextMatchup() {
     const { io, players } = state;
 
     if (state.judgeIndex >= state.pairs.length) {
-      game._showRoundResult();
+      game._showFinalResult();
       return;
     }
 
     state.votes      = {};
     const pair       = state.pairs[state.judgeIndex];
     const contenders = [pair.playerA, pair.playerB];
+    const answerA    = state.answers[`${pair.pairId}:${pair.playerA}`];
+    const answerB    = state.answers[`${pair.pairId}:${pair.playerB}`];
 
-    // Host sees the two answers anonymously
     io.to("host").emit("promptwar:matchup", {
-      round:        state.round,
-      total:        ROUNDS,
       matchupIndex: state.judgeIndex,
       matchupCount: state.pairs.length,
       prompt:       pair.prompt,
       slots: [
-        { slot: "A", answer: state.answers[pair.playerA] },
-        { slot: "B", answer: state.answers[pair.playerB] },
+        { slot: "A", answer: answerA },
+        { slot: "B", answer: answerB },
       ],
     });
 
-    // All players who are NOT in this pair vote (including sitting-out player)
     Object.keys(players).forEach(id => {
       if (contenders.includes(id)) {
         players[id].socket.emit("promptwar:you_are_contender", {
           prompt:      pair.prompt,
-          your_answer: state.answers[id],
+          your_answer: state.answers[`${pair.pairId}:${id}`],
         });
       } else {
         players[id].socket.emit("promptwar:vote_matchup", {
           prompt: pair.prompt,
           slots: [
-            { slot: "A", answer: state.answers[pair.playerA] },
-            { slot: "B", answer: state.answers[pair.playerB] },
+            { slot: "A", answer: answerA },
+            { slot: "B", answer: answerB },
           ],
         });
       }
@@ -250,43 +244,34 @@ const game = {
     const { io, players } = state;
     io.to("host").emit("host:hide_action");
 
-    const pair = state.pairs[state.judgeIndex];
+    const pair   = state.pairs[state.judgeIndex];
+    const answerA = state.answers[`${pair.pairId}:${pair.playerA}`];
+    const answerB = state.answers[`${pair.pairId}:${pair.playerB}`];
 
     const tally = { A: 0, B: 0 };
     Object.values(state.votes).forEach(slot => { tally[slot] = (tally[slot] || 0) + 1; });
 
-    // Award points
     state.scores[pair.playerA] = (state.scores[pair.playerA] || 0) + tally.A * 100;
     state.scores[pair.playerB] = (state.scores[pair.playerB] || 0) + tally.B * 100;
 
     const result = [
-      { slot: "A", name: players[pair.playerA]?.name ?? "?", answer: state.answers[pair.playerA], votes: tally.A },
-      { slot: "B", name: players[pair.playerB]?.name ?? "?", answer: state.answers[pair.playerB], votes: tally.B },
+      { slot: "A", name: players[pair.playerA]?.name ?? "?", answer: answerA, votes: tally.A },
+      { slot: "B", name: players[pair.playerB]?.name ?? "?", answer: answerB, votes: tally.B },
     ].sort((a, b) => b.votes - a.votes);
 
     io.to("host").emit("promptwar:matchup_result", { prompt: pair.prompt, result });
     io.emit("promptwar:matchup_result_player", { result });
 
     state.judgeIndex++;
-    state.timer = setTimeout(() => game._judgeNext(), 6000);
+    state.timer = setTimeout(() => game._nextMatchup(), 6000);
   },
 
-  _showRoundResult() {
+  _showFinalResult() {
     const { io } = state;
     const scores  = game._scoreBoard();
-
-    io.to("host").emit("promptwar:round_result", { round: state.round, total: ROUNDS, scores });
-    io.emit("promptwar:round_result_player",     { round: state.round, total: ROUNDS, scores });
-
-    if (state.round >= ROUNDS) {
-      state.timer = setTimeout(() => {
-        io.emit("promptwar:gameover", { scores });
-        setTimeout(() => _endGame(), 10000);
-      }, 6000);
-    } else {
-      state.phase = "writing";
-      state.timer = setTimeout(() => game._startRound(), 6000);
-    }
+    io.to("host").emit("promptwar:gameover", { scores });
+    io.emit("promptwar:gameover_player", { scores });
+    setTimeout(() => _endGame(), 10000);
   },
 
   _scoreBoard() {
@@ -297,33 +282,39 @@ const game = {
 
   onPlayerAction({ socket, payload, players }) {
     if (payload.type === "answer" && state.phase === "writing") {
-      if (state.answers[socket.id]) return;
-      // Only accept answers from players who are in a pair this round
-      const inPair = state.pairs.some(p => p.playerA === socket.id || p.playerB === socket.id);
-      if (!inPair) return;
+      const { pairId, text } = payload;
+      const key = `${pairId}:${socket.id}`;
+      if (state.answers[key]) return; // already answered this one
 
-      state.answers[socket.id] = (payload.text || "").trim().substring(0, 120) || "...";
-      socket.emit("promptwar:answer_ack");
+      // Verify this player is actually in this pair
+      const pair = state.pairs.find(p => p.pairId === pairId);
+      if (!pair || (pair.playerA !== socket.id && pair.playerB !== socket.id)) return;
 
+      state.answers[key] = (text || "").trim().substring(0, 120) || "...";
+
+      const answered = Object.keys(state.answers).length;
       state.io.to("host").emit("promptwar:answer_progress", {
-        answeredNames: Object.keys(state.answers).map(id => state.players[id]?.name ?? "?"),
+        answered,
+        totalAnswers: state.totalAnswers,
       });
+
+      // Ack just this specific answer
+      socket.emit("promptwar:answer_ack", { pairId });
 
       if (game._allAnswered()) {
         clearTimeout(state.timer);
-        game._startJudging();
+        game._startVoting();
       }
     }
 
-    if (payload.type === "vote" && state.phase === "judging") {
+    if (payload.type === "vote" && state.phase === "voting") {
       if (state.votes[socket.id]) return;
       const pair = state.pairs[state.judgeIndex];
-      if (socket.id === pair.playerA || socket.id === pair.playerB) return; // contenders can't vote
+      if (socket.id === pair.playerA || socket.id === pair.playerB) return;
 
       state.votes[socket.id] = payload.slot;
       socket.emit("promptwar:vote_ack");
 
-      // Eligible voters = everyone NOT in this specific pair
       const voterCount = Object.keys(players).filter(id =>
         id !== pair.playerA && id !== pair.playerB
       ).length;
@@ -354,10 +345,8 @@ const game = {
   },
 };
 
-function _pickPrompts(n, usedSet) {
-  const available = PROMPTS.filter(p => !usedSet.has(p));
-  const pool      = available.length >= n ? available : PROMPTS; // reset if exhausted
-  return [...pool].sort(() => Math.random() - 0.5).slice(0, n);
+function _pickPrompts(n) {
+  return [...PROMPTS].sort(() => Math.random() - 0.5).slice(0, n);
 }
 
 module.exports = game;
