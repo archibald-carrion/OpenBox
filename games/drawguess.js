@@ -147,4 +147,9 @@ module.exports = {
       this._endRound(io, players);
     }
   },
+
+  onEnd() {
+    clearTimeout(state.timer);
+    state.timer = null;
+  },
 };

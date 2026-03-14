@@ -191,6 +191,23 @@
   #btn-start:hover { transform: scale(1.05); }
   #btn-start:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
+  #btn-quit {
+    margin-top: auto;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1rem;
+    background: rgba(255,107,53,0.12);
+    color: var(--muted);
+    border: 1px solid rgba(255,107,53,0.3);
+    padding: 12px 18px;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  #btn-quit:hover {
+    background: rgba(255,107,53,0.25);
+  }
+
   #error-msg {
     color: var(--pink);
     margin-top: 12px;
@@ -331,6 +348,7 @@
   <aside id="sidebar">
     <h2>👥 Players (<span id="player-count">0</span>)</h2>
     <ul id="player-list"></ul>
+    <button id="btn-quit" type="button">Quit Game</button>
   </aside>
 
   <section id="game-area">
@@ -409,6 +427,7 @@ function renderScoreboard(containerId, scores) {
 
 // ── Lobby ─────────────────────────────────────────────────────────────────
 let selectedGame = null;
+let gameRunning = false;
 
 socket.on("host:init", ({ players, games }) => {
   renderGames(games);
@@ -452,8 +471,18 @@ $("btn-start").onclick = () => {
   socket.emit("host:start_game", { gameId: selectedGame });
 };
 
+$("btn-quit").onclick = () => {
+  if (!gameRunning) return;
+  socket.emit("host:end_game");
+};
+
 // ── Game start/end ─────────────────────────────────────────────────────────
+socket.on("game:start", ({ gameId }) => {
+  gameRunning = true;
+});
+
 socket.on("game:end", () => {
+  gameRunning = false;
   showView("lobby");
 });
 

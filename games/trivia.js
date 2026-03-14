@@ -93,6 +93,11 @@ const game = {
   onHostAction({ payload }) {
     if (payload.type === "skip") { clearTimeout(state.timer); game._revealAnswer(); }
   },
+
+  onEnd() {
+    clearTimeout(state.timer);
+    state.timer = null;
+  },
 };
 
 module.exports = game;

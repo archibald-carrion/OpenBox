@@ -132,6 +132,10 @@ class GameManager {
   }
 
   endGame() {
+    if (this.activeGame && typeof this.activeGame.onEnd === "function") {
+      this.activeGame.onEnd(this._ctx());
+    }
+
     this.activeGame = null;
     this.io.emit("game:end", {});
     this._broadcastLobby();
