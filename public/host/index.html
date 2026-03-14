@@ -310,25 +310,6 @@
     margin-top: 8px;
   }
 
-  /* Host skip button */
-  #btn-skip {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    font-family: 'Fredoka One', cursive;
-    font-size: 1rem;
-    background: #2a2845;
-    color: var(--muted);
-    border: 1px solid #3a3860;
-    padding: 10px 24px;
-    border-radius: 50px;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: none;
-  }
-
-  #btn-skip:hover { background: var(--pink); color: white; border-color: var(--pink); }
-
   /* hidden helper */
   .hidden { display: none !important; }
 </style>
@@ -394,8 +375,6 @@
 
   </section>
 </main>
-
-<button id="btn-skip">⏭ Skip</button>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
@@ -474,14 +453,8 @@ $("btn-start").onclick = () => {
 };
 
 // ── Game start/end ─────────────────────────────────────────────────────────
-socket.on("game:start", ({ gameId }) => {
-  $("btn-skip").style.display = "block";
-  $("btn-skip").onclick = () => socket.emit("host:action", { type: "skip" });
-});
-
 socket.on("game:end", () => {
   showView("lobby");
-  $("btn-skip").style.display = "none";
 });
 
 // ── TRIVIA ─────────────────────────────────────────────────────────────────
