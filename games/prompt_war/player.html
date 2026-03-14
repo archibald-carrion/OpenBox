@@ -1,0 +1,143 @@
+<style>
+  .pw-p-view { width: 100%; text-align: center; }
+
+  .pw-prompt-display {
+    background: var(--panel);
+    border: 2px solid var(--accent);
+    border-radius: 14px;
+    padding: 18px 16px;
+    font-size: 1.1rem;
+    font-weight: 800;
+    line-height: 1.5;
+    margin-bottom: 16px;
+    color: var(--text);
+  }
+
+  #pw-answer-input {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 2px solid #2a2845;
+    background: var(--panel);
+    color: var(--text);
+    font-family: 'Nunito', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    outline: none;
+    margin-bottom: 12px;
+    resize: none;
+    min-height: 80px;
+  }
+
+  #pw-answer-input:focus { border-color: var(--accent); }
+
+  .pw-submit-btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    border-radius: 50px;
+    border: none;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.2rem;
+    background: var(--accent);
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 16px rgba(255,107,53,0.3);
+  }
+
+  .pw-submit-btn:active   { transform: scale(0.97); }
+  .pw-submit-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  #pw-answer-sent { color: var(--green); margin-top: 10px; font-weight: 700; min-height: 20px; font-size: 0.9rem; }
+
+  .pw-vote-prompt {
+    background: var(--panel);
+    border: 2px solid var(--accent);
+    border-radius: 14px;
+    padding: 14px 16px;
+    font-size: 1rem;
+    font-weight: 800;
+    line-height: 1.4;
+    margin-bottom: 14px;
+    color: var(--text);
+  }
+
+  .pw-vote-option {
+    display: block;
+    width: 100%;
+    background: var(--panel);
+    border: 2px solid #2a2845;
+    border-radius: 14px;
+    padding: 14px 16px;
+    color: var(--text);
+    font-family: 'Nunito', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 10px;
+    text-align: left;
+    transition: all 0.15s;
+    line-height: 1.4;
+  }
+
+  .pw-vote-option:active   { transform: scale(0.98); }
+  .pw-vote-option.selected { border-color: var(--yellow); background: rgba(255,209,102,0.1); }
+  .pw-vote-option:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .pw-vote-letter {
+    display: inline-block;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.1rem;
+    color: var(--accent);
+    margin-right: 8px;
+  }
+
+  #pw-vote-sent { color: var(--green); margin-top: 8px; font-weight: 700; min-height: 20px; font-size: 0.9rem; }
+
+  .pw-big-emoji { font-size: 3.5rem; display: block; margin-bottom: 10px; }
+  .pw-big-msg   { font-family: 'Fredoka One', cursive; font-size: 1.5rem; color: var(--yellow); }
+  .pw-small-msg { color: var(--muted); margin-top: 6px; font-size: 0.9rem; }
+
+  .pw-score-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    font-weight: 700;
+    font-size: 1rem;
+  }
+</style>
+
+<!-- WRITING VIEW -->
+<div id="pw-write-view" class="pw-p-view" style="display:none">
+  <div style="color:var(--muted);font-size:0.85rem;margin-bottom:8px" id="pw-round-label"></div>
+  <div class="pw-prompt-display" id="pw-my-prompt"></div>
+  <textarea id="pw-answer-input" placeholder="Your funniest answer…" maxlength="120"></textarea>
+  <button class="pw-submit-btn" id="pw-submit-btn">Submit!</button>
+  <div id="pw-answer-sent"></div>
+</div>
+
+<!-- VOTING VIEW -->
+<div id="pw-vote-view" class="pw-p-view" style="display:none">
+  <div style="color:var(--muted);font-size:0.85rem;margin-bottom:8px">Vote for the funniest!</div>
+  <div class="pw-vote-prompt" id="pw-vote-prompt-text"></div>
+  <div id="pw-vote-options"></div>
+  <div id="pw-vote-sent"></div>
+</div>
+
+<!-- WAIT VIEW -->
+<div id="pw-wait-view" class="pw-p-view">
+  <span class="pw-big-emoji" id="pw-wait-emoji">⚔️</span>
+  <div class="pw-big-msg"   id="pw-wait-msg">Get ready…</div>
+  <div class="pw-small-msg" id="pw-wait-sub"></div>
+</div>
+
+<!-- FINAL SCORES VIEW -->
+<div id="pw-scores-view" class="pw-p-view" style="display:none">
+  <div class="pw-big-msg" style="margin-bottom:16px">Final Scores!</div>
+  <div id="pw-scores-list"></div>
+</div>
