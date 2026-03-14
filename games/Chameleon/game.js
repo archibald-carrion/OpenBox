@@ -219,7 +219,11 @@ const game = {
       caughtRight,
     });
 
-    io.emit("chameleon:vote_result", { accused: accusedNames, caughtRight });
+    io.emit("chameleon:vote_result", {
+      accused: accusedNames,
+      caughtRight,
+      chameleonName: players[state.chameleonId]?.name ?? "?",
+    });
 
     if (caughtRight) {
       // Give chameleon a chance to guess the word
@@ -341,12 +345,22 @@ const game = {
       state.chameleonGuess = (payload.word || "").trim();
       const correct = state.chameleonGuess.toLowerCase() === state.secretWord.toLowerCase();
 
+      // Host sees the guess
       state.io.to("host").emit("chameleon:chameleon_guessed", {
         guess: state.chameleonGuess,
         correct,
       });
 
-      state.io.emit("chameleon:chameleon_guessed", { guess: state.chameleonGuess, correct });
+      // Only the chameleon sees their own guess result on their phone
+      socket.emit("chameleon:chameleon_guessed", { guess: state.chameleonGuess, correct });
+
+      // Everyone else just waits
+      Object.keys(state.players).forEach(id => {
+        if (id !== state.chameleonId) {
+          state.players[id].socket.emit("chameleon:waiting", { message: "The Chameleon is guessing…" });
+        }
+      });
+
       setTimeout(() => game._endRound(true, correct), 3000);
     }
   },

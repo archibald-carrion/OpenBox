@@ -4,7 +4,6 @@
 
   let isChameleon   = false;
   let secretWord    = null;
-  let guessWords    = [];
   let selectedGuess = null;
 
   function showView(id) {
@@ -26,13 +25,13 @@
     $("ch-between-msg").textContent   = msg;
   }
 
-  // ── Initial wait ──────────────────────────────────────────────────────────
+  // Initial wait
   socket.on("chameleon:waiting", ({ message }) => {
     wait("🦎", "The Chameleon", message);
   });
 
-  // ── Role reveal ───────────────────────────────────────────────────────────
-  socket.on("chameleon:your_role", ({ isChameleon: ic, secretWord: sw, grid, words }) => {
+  // Role reveal
+  socket.on("chameleon:your_role", ({ isChameleon: ic, secretWord: sw, words }) => {
     isChameleon = ic;
     secretWord  = sw;
 
@@ -40,22 +39,18 @@
     card.className = `ch-role-card ${ic ? "chameleon" : "innocent"}`;
 
     if (ic) {
-      $("ch-role-icon").textContent = "🦎";
-      $("ch-role-name").textContent = "You are the Chameleon!";
-      $("ch-role-sub").textContent  = "Blend in — you don't know the secret word!";
+      $("ch-role-icon").textContent   = "🦎";
+      $("ch-role-name").textContent   = "You are the Chameleon!";
+      $("ch-role-sub").textContent    = "Blend in — you don't know the secret word!";
       $("ch-secret-reveal").innerHTML = "";
-
-      // Show compact grid for reference
       $("ch-chameleon-grid").style.display = "";
-      $("ch-p-grid-display").innerHTML = words.map((w, i) =>
+      $("ch-p-grid-display").innerHTML = words.map(w =>
         `<div class="ch-p-grid-cell">${w}</div>`).join("");
-
     } else {
-      $("ch-role-icon").textContent = "🕵️";
-      $("ch-role-name").textContent = "You are NOT the Chameleon";
-      $("ch-role-sub").textContent  = "The secret word is:";
-      $("ch-secret-reveal").innerHTML =
-        `<div class="ch-secret-word">${sw}</div>`;
+      $("ch-role-icon").textContent   = "🕵️";
+      $("ch-role-name").textContent   = "You are NOT the Chameleon";
+      $("ch-role-sub").textContent    = "The secret word is:";
+      $("ch-secret-reveal").innerHTML = `<div class="ch-secret-word">${sw}</div>`;
       $("ch-chameleon-grid").style.display = "none";
     }
 
@@ -63,19 +58,20 @@
   });
 
   $("ch-ready-btn").onclick = () => {
-    // Just move to the clue view (already waiting for all players)
     $("ch-clue-heading").textContent = isChameleon
       ? "Give one clue word (blend in!)"
-      : `Secret word: "${secretWord}" — give a subtle clue`;
+      : `Secret word: "${secretWord}" - give a subtle clue`;
     $("ch-clue-hint").textContent = isChameleon
-      ? "You don't know the secret word — be vague but convincing!"
+      ? "You don't know the secret word - be vague but convincing!"
       : "One word only. Don't make it too obvious!";
-    $("ch-clue-sent").textContent = "";
-    $("ch-clue-input").value      = "";
+    $("ch-clue-sent").textContent  = "";
+    $("ch-clue-input").value       = "";
+    $("ch-clue-input").disabled    = false;
+    $("ch-clue-submit").disabled   = false;
     showView("ch-clue-view");
   };
 
-  // ── Clue submission ───────────────────────────────────────────────────────
+  // Clue submission
   $("ch-clue-submit").onclick = submitClue;
   $("ch-clue-input").addEventListener("keydown", e => { if (e.key === "Enter") submitClue(); });
 
@@ -84,22 +80,17 @@
     if (!text) return;
     $("ch-clue-submit").disabled  = true;
     $("ch-clue-input").disabled   = true;
-    $("ch-clue-sent").textContent = `✅ Clue submitted: "${text}"`;
+    $("ch-clue-sent").textContent = `Clue submitted: "${text}"`;
     socket.emit("player:action", { type: "clue", text });
   }
 
-  socket.on("chameleon:clue_ack", () => {
-    // already shown above
-  });
-
-  // ── Vote phase ────────────────────────────────────────────────────────────
+  // Vote phase
   socket.on("chameleon:vote_ballot", ({ candidates }) => {
     showView("ch-vote-view");
     $("ch-vote-sent").textContent = "";
-
-    $("ch-ballot-list").innerHTML = candidates.map(c => `
-      <button class="ch-candidate-btn" data-id="${c.id}">${c.name}</button>
-    `).join("");
+    $("ch-ballot-list").innerHTML = candidates.map(c =>
+      `<button class="ch-candidate-btn" data-id="${c.id}">${c.name}</button>`
+    ).join("");
 
     document.querySelectorAll(".ch-candidate-btn").forEach(btn => {
       btn.onclick = () => {
@@ -110,32 +101,28 @@
         });
         btn.classList.add("selected");
         document.querySelectorAll(".ch-candidate-btn").forEach(b => b.disabled = true);
-        $("ch-vote-sent").textContent = `✅ Voted for ${btn.textContent}`;
+        $("ch-vote-sent").textContent = `Voted for ${btn.textContent.trim()}`;
         socket.emit("player:action", { type: "vote", targetId: btn.dataset.id });
       };
     });
   });
 
-  socket.on("chameleon:vote_ack", () => {
-    // shown inline
-  });
-
-  // ── Vote reveal / guess phase ────────────────────────────────────────────
-  socket.on("chameleon:vote_result", ({ accused, caughtRight }) => {
+  // Vote result - announce the chameleon loudly if caught
+  socket.on("chameleon:vote_result", ({ accused, caughtRight, chameleonName }) => {
     if (!accused.length) {
-      between("🤝", "No majority — nobody accused!");
+      between("🤝", "No majority - nobody accused!");
     } else if (caughtRight) {
-      between("😬", `${accused.join(", ")} was accused…`);
+      between("🦎", `${chameleonName} IS THE CHAMELEON!`);
     } else {
-      between("😈", `${accused.join(", ")} was accused — but they're innocent!`);
+      between("😈", `${accused.join(", ")} is accused - but innocent!`);
     }
   });
 
-  socket.on("chameleon:you_must_guess", ({ grid, words }) => {
-    guessWords    = words;
+  // Chameleon guess view - only sent to the chameleon's phone by the server
+  socket.on("chameleon:you_must_guess", ({ words }) => {
     selectedGuess = null;
-
-    $("ch-guess-grid").innerHTML = words.map((w, i) =>
+    $("ch-guess-confirm").textContent = "";
+    $("ch-guess-grid").innerHTML = words.map(w =>
       `<div class="ch-p-grid-cell" data-word="${w}">${w}</div>`
     ).join("");
 
@@ -143,7 +130,6 @@
       cell.onclick = () => {
         if (cell.classList.contains("confirmed")) return;
 
-        // First tap = select
         if (!cell.classList.contains("selected")) {
           document.querySelectorAll("#ch-guess-grid .ch-p-grid-cell")
             .forEach(c => c.classList.remove("selected"));
@@ -153,13 +139,12 @@
           return;
         }
 
-        // Second tap = confirm
         cell.classList.add("confirmed");
         document.querySelectorAll("#ch-guess-grid .ch-p-grid-cell").forEach(c => {
           c.classList.remove("selected");
           c.style.pointerEvents = "none";
         });
-        $("ch-guess-confirm").textContent = `✅ You guessed: "${selectedGuess}"`;
+        $("ch-guess-confirm").textContent = `You guessed: "${selectedGuess}"`;
         socket.emit("player:action", { type: "chameleon_guess", word: selectedGuess });
       };
     });
@@ -167,24 +152,20 @@
     showView("ch-chameleon-guess-view");
   });
 
+  // Only the chameleon receives this - others get chameleon:waiting from the server
   socket.on("chameleon:chameleon_guessed", ({ guess, correct }) => {
     between(
       correct ? "😅" : "😵",
-      correct ? `"${guess}" — Correct! You escape!` : `"${guess}" — Wrong!`
+      correct ? `"${guess}" - Correct! You escape!` : `"${guess}" - Wrong!`
     );
   });
 
-  // ── Round result ──────────────────────────────────────────────────────────
-  socket.on("chameleon:round_result", ({ winner, chameleonName, secretWord: word }) => {
-    const isMe = isChameleon;
+  // Round result
+  socket.on("chameleon:round_result", ({ winner, chameleonName }) => {
     if (winner === "chameleon") {
-      between("🦎", isMe ? "You win! They didn't catch you!" : `${chameleonName} escaped!`);
+      between("🦎", isChameleon ? "You win! They didn't catch you!" : `${chameleonName} escaped!`);
     } else {
-      between("🎉", isMe ? "You were caught!" : `You caught ${chameleonName}!`);
+      between("🎉", isChameleon ? "You were caught!" : `You caught ${chameleonName}!`);
     }
-  });
-
-  socket.on("chameleon:waiting", ({ message }) => {
-    wait("🦎", "Next Round", message);
   });
 })();
