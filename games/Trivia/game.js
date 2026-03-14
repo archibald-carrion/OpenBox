@@ -17,6 +17,7 @@ const QUESTIONS = [
 ];
 
 let state = {};
+let _endGame = null;  // kept outside state so clearTimeout in onEnd can't race it
 
 const game = {
   id:         "trivia",
@@ -25,6 +26,7 @@ const game = {
   maxPlayers: 16,
 
   start({ io, players, endGame }) {
+    _endGame = endGame;
     const shuffled = [...QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 6);
     state = {
       questions:     shuffled,
@@ -33,9 +35,8 @@ const game = {
       answered:      {},
       questionStart: Date.now(),
       timer:         null,
-      io, players, endGame,
+      io, players,
     };
-    // Timer starts now — host and players both pull their view via ready events
     clearTimeout(state.timer);
     state.timer = setTimeout(() => game._revealAnswer(), 15000);
   },
@@ -95,7 +96,7 @@ const game = {
     } else {
       state.timer = setTimeout(() => {
         state.io.emit("trivia:gameover", { scores: game._scoreBoard() });
-        setTimeout(() => state.endGame(), 8000);
+        setTimeout(() => _endGame(), 8000);
       }, 4000);
     }
   },
@@ -136,7 +137,8 @@ const game = {
 
   onEnd() {
     clearTimeout(state.timer);
-    state = {};
+    state    = {};
+    _endGame = null;
   },
 };
 
