@@ -18,70 +18,9 @@ npm start
 
 ## Adding a New Game
 
-Just create a new folder in `/games/` — it's auto-discovered on startup:
+For detailed, step-by-step instructions on building a new game (folder structure, lifecycle hooks, socket event patterns, and best practices), see the full game developer guide:
 
-```
-games/
-└── mygame/
-    ├── game.js       ← server logic (required)
-    ├── host.html     ← host UI fragment (required)
-    ├── host.js       ← host UI logic (required)
-    ├── player.html   ← player UI fragment (required)
-    ├── player.js     ← player UI logic (required)
-    └── anything.png  ← any assets, served at /games/mygame/
-```
-
-**No other files need to be touched.** The shell loads your game's HTML/JS automatically when the host starts it.
-
----
-
-### game.js contract
-
-```js
-module.exports = {
-  id:         "mygame",
-  name:       "🎯 My Game",
-  minPlayers: 2,
-  maxPlayers: 8,
-
-  // Called once when host starts the game
-  start({ io, players, endGame }) {},
-
-  // Called on any player:action event from a player
-  onPlayerAction({ socket, player, payload, io, players, endGame }) {},
-
-  // Called on any host:action event from the host
-  onHostAction({ socket, payload, io, players, endGame }) {},
-
-  // Optional: called when returning to lobby (cleanup timers etc.)
-  onEnd({ io, players }) {},
-
-  // Optional: called when a new player joins mid-game
-  onPlayerJoin({ socket, player, io, players, endGame }) {},
-};
-```
-
-### host.js / player.js
-
-`socket` is already connected and available as a global — just use it:
-
-```js
-// host.js or player.js
-socket.on("mygame:something", (data) => {
-  // update the DOM from your html fragment
-});
-```
-
-### Showing a contextual button on the host screen
-
-From your `game.js`, emit these to give the host a dynamic action button:
-
-```js
-io.to("host").emit("host:show_action", { label: "⏭ Skip", type: "skip" });
-io.to("host").emit("host:hide_action");
-```
-
-When clicked, the host shell fires `host:action` with `{ type: "skip" }` back to the server, which routes it to your `onHostAction`.
+- **[`game_developer_guide.md`](game_developer_guide.md)**
 
 ---
 
@@ -115,3 +54,23 @@ When clicked, the host shell fires `host:action` with `{ type: "skip" }` back to
 |---|---|
 | `player:join` | `{ name }` |
 | `player:action` | `{ type, ...any }` |
+
+
+## TODO
+This new section covers **some things which needs checking/improving** in the codebase, framework, games, and documentation. Since it's a vibe-coded MVP, I organized it into logical categories with specific, actionable items:
+
+### 📋 Categories Included
+- **🔧 Framework/Core Issues** — Error handling, race conditions, security, performance
+- **🎮 Game-Specific Issues** — Trivia, Draw & Guess, Prompt War improvements
+- **🛠️ Developer Experience** — Code quality, testing, documentation
+- **🎨 UI/UX Issues** — Host/player interfaces, accessibility, responsiveness
+- **🚀 Deployment & Operations** — Production readiness, platform support
+- **🧪 Testing & Quality Assurance** — Automated and manual testing
+- **📊 Analytics & Metrics** — Usage tracking and business intelligence
+- Check what additional thing could be abstracted by the host and not managed by the game
+
+### 🎯 Key Highlights
+- **Prioritized by impact** — Critical issues (error handling, security) first
+- **Realistic scope** — Covers both quick wins and major overhauls
+- **Comprehensive but not overwhelming** — Each item is specific and actionable
+- **MVP-appropriate** — Acknowledges this is early-stage code that needs polish
