@@ -1,0 +1,267 @@
+<style>
+  #ch-host { width: 100%; }
+
+  /* ── Grid picker ── */
+  #ch-grid-picker { text-align: center; }
+
+  .ch-title {
+    font-family: 'Fredoka One', cursive;
+    font-size: 2rem;
+    color: var(--yellow);
+    margin-bottom: 8px;
+  }
+
+  .ch-sub { color: var(--muted); margin-bottom: 24px; font-size: 1rem; }
+
+  .ch-grid-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    justify-content: center;
+    margin-bottom: 8px;
+  }
+
+  .ch-grid-btn {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.1rem;
+    padding: 14px 28px;
+    border-radius: 14px;
+    border: 2px solid #2a2845;
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .ch-grid-btn:hover, .ch-grid-btn.selected {
+    border-color: var(--accent);
+    background: rgba(255,107,53,0.15);
+    transform: translateY(-2px);
+  }
+
+  /* ── Main game layout ── */
+  #ch-game-panel { display: none; }
+
+  .ch-game-layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 24px;
+    align-items: start;
+  }
+
+  /* Word grid */
+  .ch-word-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .ch-word-cell {
+    background: var(--panel);
+    border: 2px solid #2a2845;
+    border-radius: 10px;
+    padding: 10px 6px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    transition: all 0.3s;
+  }
+
+  .ch-word-cell.secret {
+    background: rgba(255,209,102,0.2);
+    border-color: var(--yellow);
+    color: var(--yellow);
+    box-shadow: 0 0 16px rgba(255,209,102,0.3);
+  }
+
+  /* Sidebar */
+  .ch-sidebar { display: flex; flex-direction: column; gap: 16px; }
+
+  .ch-panel-box {
+    background: var(--panel);
+    border: 2px solid #2a2845;
+    border-radius: 14px;
+    padding: 16px;
+  }
+
+  .ch-panel-box h3 {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+
+  /* Clue list */
+  .ch-clue-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #2a2845;
+    font-size: 0.95rem;
+    gap: 8px;
+  }
+
+  .ch-clue-row:last-child { border-bottom: none; }
+
+  .ch-clue-name { color: var(--muted); font-weight: 600; flex-shrink: 0; }
+
+  .ch-clue-word {
+    font-weight: 800;
+    color: var(--text);
+    text-align: right;
+  }
+
+  .ch-clue-word.pending { color: #2a2845; font-style: italic; }
+
+  /* Vote progress */
+  .ch-vote-bar-wrap {
+    height: 8px;
+    background: #2a2845;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+
+  #ch-vote-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 4px;
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+
+  #ch-vote-count { font-size: 0.9rem; color: var(--muted); margin-top: 4px; }
+
+  /* Vote reveal tally */
+  .ch-tally-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    font-weight: 700;
+    font-size: 1rem;
+  }
+
+  .ch-tally-bar-wrap {
+    flex: 1;
+    height: 10px;
+    background: #2a2845;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+
+  .ch-tally-bar { height: 100%; border-radius: 5px; background: var(--accent); transition: width 0.5s ease; }
+
+  .ch-accused { color: var(--pink); }
+
+  /* Result */
+  #ch-result-panel {
+    text-align: center;
+    padding: 20px;
+  }
+
+  .ch-result-winner {
+    font-family: 'Fredoka One', cursive;
+    font-size: 3rem;
+    margin-bottom: 8px;
+  }
+
+  .ch-result-winner.players  { color: var(--green); }
+  .ch-result-winner.chameleon { color: var(--pink); }
+
+  .ch-result-detail { color: var(--muted); font-size: 1.1rem; margin-top: 6px; }
+
+  /* Chameleon guess phase */
+  #ch-guess-panel { text-align: center; }
+
+  .ch-guess-spotlight {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.8rem;
+    color: var(--yellow);
+    margin-bottom: 8px;
+  }
+</style>
+
+<div id="ch-host">
+
+  <!-- GRID PICKER -->
+  <div id="ch-grid-picker">
+    <div class="ch-title">🦎 The Chameleon</div>
+    <div class="ch-sub">Choose a word grid to play with</div>
+    <div class="ch-grid-options" id="ch-grid-options"></div>
+  </div>
+
+  <!-- MAIN GAME (grid + clues + vote) -->
+  <div id="ch-game-panel">
+    <div class="ch-game-layout">
+
+      <!-- Left: word grid -->
+      <div>
+        <div class="ch-word-grid" id="ch-word-grid"></div>
+      </div>
+
+      <!-- Right: sidebar -->
+      <div class="ch-sidebar">
+
+        <!-- Phase indicator -->
+        <div class="ch-panel-box" id="ch-phase-box">
+          <h3>Phase</h3>
+          <div id="ch-phase-label" style="font-family:'Fredoka One',cursive;font-size:1.2rem;color:var(--accent)">
+            Clue Phase
+          </div>
+        </div>
+
+        <!-- Clue list -->
+        <div class="ch-panel-box" id="ch-clue-box">
+          <h3>Clues</h3>
+          <div id="ch-clue-list"></div>
+        </div>
+
+        <!-- Vote progress (hidden until vote phase) -->
+        <div class="ch-panel-box" id="ch-vote-box" style="display:none">
+          <h3>Votes</h3>
+          <div class="ch-vote-bar-wrap"><div id="ch-vote-bar"></div></div>
+          <div id="ch-vote-count">0 / 0 voted</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- VOTE REVEAL -->
+  <div id="ch-reveal-panel" style="display:none">
+    <div class="ch-game-layout">
+      <div>
+        <div class="ch-title" style="text-align:center;margin-bottom:16px">🗳️ Vote Results</div>
+        <div id="ch-tally-list"></div>
+        <div style="margin-top:16px;font-size:1rem;color:var(--muted)" id="ch-accused-label"></div>
+      </div>
+      <div class="ch-sidebar">
+        <div class="ch-panel-box">
+          <h3>All Votes</h3>
+          <div id="ch-vote-detail"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHAMELEON GUESSING -->
+  <div id="ch-guess-panel" style="display:none;text-align:center;padding:40px 0">
+    <div class="ch-guess-spotlight" id="ch-guess-spotlight"></div>
+    <div style="color:var(--muted);font-size:1rem">is guessing the secret word on their phone…</div>
+    <div style="margin-top:20px;font-size:3rem" id="ch-guess-waiting">🤔</div>
+  </div>
+
+  <!-- ROUND RESULT -->
+  <div id="ch-result-panel" style="display:none">
+    <div class="ch-result-winner" id="ch-result-winner"></div>
+    <div class="ch-result-detail" id="ch-result-detail-1"></div>
+    <div class="ch-result-detail" id="ch-result-detail-2"></div>
+    <div style="margin-top:24px;color:var(--muted);font-size:0.9rem">Next grid selection coming up…</div>
+  </div>
+
+</div>

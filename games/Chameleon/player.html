@@ -1,0 +1,213 @@
+<style>
+  /* All views inside the game container */
+  .ch-p-view { width: 100%; text-align: center; }
+
+  /* Role card */
+  .ch-role-card {
+    border-radius: 20px;
+    padding: 28px 20px;
+    margin-bottom: 16px;
+    border: 3px solid transparent;
+  }
+
+  .ch-role-card.innocent {
+    background: rgba(6,214,160,0.1);
+    border-color: var(--green);
+  }
+
+  .ch-role-card.chameleon {
+    background: rgba(239,71,111,0.1);
+    border-color: var(--pink);
+  }
+
+  .ch-role-icon { font-size: 3rem; display: block; margin-bottom: 10px; }
+
+  .ch-role-name {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.6rem;
+    margin-bottom: 6px;
+  }
+
+  .innocent .ch-role-name { color: var(--green); }
+  .chameleon .ch-role-name { color: var(--pink); }
+
+  .ch-role-sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 14px; }
+
+  .ch-secret-word {
+    font-family: 'Fredoka One', cursive;
+    font-size: 2rem;
+    color: var(--yellow);
+    background: rgba(255,209,102,0.1);
+    border: 2px solid var(--yellow);
+    border-radius: 12px;
+    padding: 10px 20px;
+    display: inline-block;
+    margin-top: 4px;
+  }
+
+  /* Word grid (compact, for chameleon) */
+  .ch-p-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 5px;
+    margin: 12px 0;
+  }
+
+  .ch-p-grid-cell {
+    background: var(--panel);
+    border: 1px solid #2a2845;
+    border-radius: 7px;
+    padding: 7px 3px;
+    text-align: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .ch-p-grid-cell:active, .ch-p-grid-cell.selected {
+    background: rgba(255,107,53,0.25);
+    border-color: var(--accent);
+  }
+
+  /* Clue input */
+  .ch-clue-prompt {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.3rem;
+    color: var(--yellow);
+    margin-bottom: 12px;
+  }
+
+  #ch-clue-input {
+    width: 100%;
+    padding: 14px 18px;
+    border-radius: 14px;
+    border: 2px solid #2a2845;
+    background: var(--panel);
+    color: var(--text);
+    font-family: 'Nunito', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    outline: none;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+
+  #ch-clue-input:focus { border-color: var(--accent); }
+
+  .ch-submit-btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    border-radius: 50px;
+    border: none;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.2rem;
+    background: var(--accent);
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 16px rgba(255,107,53,0.3);
+  }
+
+  .ch-submit-btn:active   { transform: scale(0.97); }
+  .ch-submit-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* Vote ballot */
+  .ch-vote-prompt {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.3rem;
+    color: var(--yellow);
+    margin-bottom: 16px;
+  }
+
+  .ch-candidate-btn {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    border-radius: 14px;
+    background: var(--panel);
+    border: 2px solid #2a2845;
+    color: var(--text);
+    font-family: 'Nunito', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+
+  .ch-candidate-btn:active { transform: scale(0.98); }
+  .ch-candidate-btn.selected {
+    border-color: var(--pink);
+    background: rgba(239,71,111,0.15);
+  }
+
+  .ch-candidate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Wait / status */
+  .big-emoji { font-size: 3.5rem; display: block; margin-bottom: 10px; }
+  .big-msg   { font-family: 'Fredoka One', cursive; font-size: 1.5rem; color: var(--yellow); }
+  .small-msg { color: var(--muted); margin-top: 8px; font-size: 0.9rem; }
+
+  /* Guess phase */
+  .ch-guess-prompt {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.2rem;
+    color: var(--pink);
+    margin-bottom: 16px;
+  }
+</style>
+
+<!-- WAITING FOR ROUND TO START -->
+<div id="ch-wait-view" class="ch-p-view">
+  <span class="big-emoji" id="ch-wait-emoji">⏳</span>
+  <div class="big-msg"   id="ch-wait-msg">Waiting for host…</div>
+  <div class="small-msg" id="ch-wait-sub"></div>
+</div>
+
+<!-- ROLE REVEAL -->
+<div id="ch-role-view" class="ch-p-view" style="display:none">
+  <div class="ch-role-card" id="ch-role-card">
+    <span class="ch-role-icon"  id="ch-role-icon"></span>
+    <div  class="ch-role-name"  id="ch-role-name"></div>
+    <div  class="ch-role-sub"   id="ch-role-sub"></div>
+    <div  id="ch-secret-reveal"></div>
+  </div>
+  <!-- Compact word grid shown to chameleon for reference -->
+  <div id="ch-chameleon-grid" style="display:none">
+    <div style="color:var(--muted);font-size:0.85rem;margin-bottom:6px">The word grid:</div>
+    <div class="ch-p-grid" id="ch-p-grid-display"></div>
+  </div>
+  <button class="ch-submit-btn" id="ch-ready-btn">I'm Ready 👍</button>
+</div>
+
+<!-- CLUE PHASE -->
+<div id="ch-clue-view" class="ch-p-view" style="display:none">
+  <div class="ch-clue-prompt" id="ch-clue-heading">Give one clue word</div>
+  <div style="color:var(--muted);font-size:0.85rem;margin-bottom:12px" id="ch-clue-hint"></div>
+  <input type="text" id="ch-clue-input" placeholder="Your clue…" maxlength="30" autocomplete="off">
+  <button class="ch-submit-btn" id="ch-clue-submit">Submit Clue</button>
+  <div id="ch-clue-sent" style="color:var(--green);margin-top:12px;font-weight:700;min-height:20px"></div>
+</div>
+
+<!-- VOTE PHASE -->
+<div id="ch-vote-view" class="ch-p-view" style="display:none">
+  <div class="ch-vote-prompt">🕵️ Who is the Chameleon?</div>
+  <div id="ch-ballot-list"></div>
+  <div id="ch-vote-sent" style="color:var(--green);margin-top:8px;font-weight:700;min-height:20px"></div>
+</div>
+
+<!-- CHAMELEON GUESS PHASE (only shown to chameleon) -->
+<div id="ch-chameleon-guess-view" class="ch-p-view" style="display:none">
+  <div class="ch-guess-prompt">You've been caught! 🦎<br>Guess the secret word to escape!</div>
+  <div class="ch-p-grid" id="ch-guess-grid"></div>
+  <div id="ch-guess-confirm" style="color:var(--green);margin-top:10px;font-weight:700;min-height:20px"></div>
+</div>
+
+<!-- GENERIC WAIT (between phases) -->
+<div id="ch-between-view" class="ch-p-view" style="display:none">
+  <span class="big-emoji" id="ch-between-emoji">📺</span>
+  <div class="big-msg"   id="ch-between-msg">Check the TV!</div>
+</div>
