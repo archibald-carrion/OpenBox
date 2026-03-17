@@ -301,10 +301,10 @@ const game = {
     }
   },
 
-  onPlayerAction({ socket, payload, players }) {
+  onPlayerAction({ socket, player, payload, players }) {
     // Player submits their clue word
     if (payload.type === "clue" && state.phase === "clue") {
-      state.clues[socket.id] = (payload.text || "").trim().substring(0, 30);
+      state.clues[player.id] = (payload.text || "").trim().substring(0, 30);
       socket.emit("chameleon:clue_ack");
 
       // Update host with current clues
@@ -316,7 +316,7 @@ const game = {
       });
 
       // All players have given clues → move to vote
-      if (Object.keys(players).every(id => state.clues[id])) {
+      if (Object.keys(state.players).every(id => state.clues[id])) {
         clearTimeout(state.timer);
         state.io.to("host").emit("host:hide_action");
         setTimeout(() => game._startVote(), 1000);
@@ -325,23 +325,23 @@ const game = {
 
     // Player submits their vote
     if (payload.type === "vote" && state.phase === "vote") {
-      state.votes[socket.id] = payload.targetId;
+      state.votes[player.id] = payload.targetId;
       socket.emit("chameleon:vote_ack");
 
       state.io.to("host").emit("chameleon:vote_progress", {
         voted: Object.keys(state.votes).length,
-        total: Object.keys(players).length,
+        total: Object.keys(state.players).length,
       });
 
       // All votes in → reveal
-      if (Object.keys(players).every(id => state.votes[id])) {
+      if (Object.keys(state.players).every(id => state.votes[id])) {
         game._revealVotes();
       }
     }
 
     // Chameleon submits their word guess
     if (payload.type === "chameleon_guess" && state.phase === "chameleon_guess") {
-      if (socket.id !== state.chameleonId) return;
+      if (player.id !== state.chameleonId) return;
       state.chameleonGuess = (payload.word || "").trim();
       const correct = state.chameleonGuess.toLowerCase() === state.secretWord.toLowerCase();
 

@@ -1,15 +1,19 @@
 const fs      = require("fs");
 const path    = require("path");
 const express = require("express");
+const crypto  = require("crypto");
 
 class GameManager {
   constructor(io, app) {
     this.io         = io;
     this.app        = app;
-    this.players    = {};   // socketId → { id, name, socket }
+    this.players    = {};   // persistentId → { id, name, socket, connected: boolean, lastSeen: Date }
     this.hostSocket = null;
     this.activeGame = null;
     this.games      = this._loadGames();
+
+    // Clean up disconnected players every 5 minutes
+    setInterval(() => this._cleanupDisconnectedPlayers(), 5 * 60 * 1000);
   }
 
   // ── Auto-load every subfolder in /games/ that has a game.js ──────────────
@@ -38,7 +42,11 @@ class GameManager {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   _playerList() {
-    return Object.values(this.players).map(p => ({ id: p.id, name: p.name }));
+    return Object.values(this.players).map(p => ({
+      id: p.id,
+      name: p.name,
+      connected: p.connected
+    }));
   }
 
   _broadcastLobby() {
@@ -73,20 +81,60 @@ class GameManager {
     });
   }
 
-  onPlayerJoin(socket, name) {
-    const trimmed = (name || "").trim().substring(0, 20) || "Player";
-    this.players[socket.id] = { id: socket.id, name: trimmed, socket };
+  onPlayerJoin(socket, data) {
+    const { name, persistentId, token } = data;
+    let playerId = persistentId;
+
+    // If no persistentId provided, generate one
+    if (!playerId) {
+      playerId = crypto.randomUUID();
+    }
+
+    // Check if player already exists (reconnection)
+    let player = this.players[playerId];
+
+    if (player) {
+      // Reconnection: update socket and mark as connected
+      player.socket = socket;
+      player.connected = true;
+      player.lastSeen = new Date();
+      console.log(`Player ${player.name} reconnected with ID ${playerId}`);
+    } else {
+      // New player
+      const trimmed = (name || "").trim().substring(0, 20) || "Player";
+      player = {
+        id: playerId,
+        name: trimmed,
+        socket,
+        connected: true,
+        lastSeen: new Date()
+      };
+      this.players[playerId] = player;
+      console.log(`New player ${trimmed} joined with ID ${playerId}`);
+    }
+
     socket.join("players");
-    socket.emit("player:joined", { id: socket.id, name: trimmed });
+    socket.emit("player:joined", {
+      id: player.id,
+      name: player.name,
+      persistentId: player.id,
+      gameActive: !!this.activeGame,
+      gameId: this.activeGame?.id
+    });
     this._broadcastLobby();
 
     if (this.activeGame?.onPlayerJoin) {
-      this.activeGame.onPlayerJoin({ socket, player: this.players[socket.id], ...this._ctx() });
+      this.activeGame.onPlayerJoin({ socket, player, ...this._ctx() });
+    }
+
+    // If there's an active game, send the start event to the rejoining player
+    if (this.activeGame && player) {
+      socket.emit("game:start", { gameId: this.activeGame.id });
     }
   }
 
   onPlayerAction(socket, payload) {
-    const player = this.players[socket.id];
+    const player = Object.values(this.players).find(p => p.socket?.id === socket.id);
     if (!player || !this.activeGame) return;
     this.activeGame.onPlayerAction({ socket, player, payload, ...this._ctx() });
   }
@@ -97,8 +145,12 @@ class GameManager {
   }
 
   onDisconnect(socket) {
-    if (this.players[socket.id]) {
-      delete this.players[socket.id];
+    // Find the player by socket
+    const player = Object.values(this.players).find(p => p.socket?.id === socket.id);
+    if (player) {
+      player.connected = false;
+      player.socket = null;
+      console.log(`Player ${player.name} disconnected (ID: ${player.id})`);
       this._broadcastLobby();
     }
     if (this.hostSocket?.id === socket.id) this.hostSocket = null;
@@ -136,7 +188,7 @@ class GameManager {
 
   // Called when a player shell finishes loading the game UI
   onPlayerReady(socket) {
-    const player = this.players[socket.id];
+    const player = Object.values(this.players).find(p => p.socket?.id === socket.id);
     if (!player || !this.activeGame?.onPlayerReady) return;
     this.activeGame.onPlayerReady({ socket, player, ...this._ctx() });
   }
@@ -146,6 +198,19 @@ class GameManager {
     this.activeGame = null;
     this.io.emit("game:end", {});
     this._broadcastLobby();
+  }
+
+  // ── Cleanup old disconnected players (called every 5 minutes) ────────────
+  _cleanupDisconnectedPlayers() {
+    const now = new Date();
+    const timeoutMs = 30 * 60 * 1000; // 30 minutes
+
+    for (const [id, player] of Object.entries(this.players)) {
+      if (!player.connected && (now - player.lastSeen) > timeoutMs) {
+        console.log(`Cleaning up disconnected player ${player.name} (ID: ${id})`);
+        delete this.players[id];
+      }
+    }
   }
 }
 
