@@ -136,7 +136,29 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-const socket = io();
+const socket = io({
+  reconnection: true,
+  reconnectionAttempts: 10,
+  reconnectionDelay: 1000,
+  timeout: 20000
+});
+
+// ── Persistent player ID storage ───────────────────────────────────────────
+function getStoredPlayerId() {
+  return localStorage.getItem('openbox-player-id');
+}
+
+function setStoredPlayerId(id) {
+  localStorage.setItem('openbox-player-id', id);
+}
+
+function getStoredPlayerName() {
+  return localStorage.getItem('openbox-player-name');
+}
+
+function setStoredPlayerName(name) {
+  localStorage.setItem('openbox-player-name', name);
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -146,19 +168,66 @@ function showView(id) {
     $(v).classList.toggle("hidden", v !== id));
 }
 
+// ── Auto-rejoin if we have stored credentials ──────────────────────────────
+function attemptRejoin() {
+  const storedId = getStoredPlayerId();
+  const storedName = getStoredPlayerName();
+
+  if (storedId && storedName) {
+    console.log('Attempting to rejoin with stored credentials');
+    socket.emit("player:join", {
+      name: storedName,
+      persistentId: storedId
+    });
+    return true;
+  }
+  return false;
+}
+
 // ── Join ──────────────────────────────────────────────────────────────────
 $("btn-join").onclick = () => {
   const name = $("name-input").value.trim();
-  if (name) socket.emit("player:join", { name });
+  if (name) {
+    setStoredPlayerName(name);
+    socket.emit("player:join", { name });
+  }
 };
 
 $("name-input").addEventListener("keydown", e => {
   if (e.key === "Enter") $("btn-join").click();
 });
 
-socket.on("player:joined", ({ name }) => {
+// ── Connection events ─────────────────────────────────────────────────────
+socket.on("connect", () => {
+  console.log('Connected to server');
+  // Try to rejoin if we have stored data
+  if (!attemptRejoin()) {
+    showView("join-view");
+  }
+});
+
+socket.on("disconnect", (reason) => {
+  console.log('Disconnected:', reason);
+  // Don't show join view immediately - we might reconnect
+});
+
+socket.on("reconnect", () => {
+  console.log('Reconnected to server');
+  // Attempt rejoin on reconnection
+  attemptRejoin();
+});
+
+socket.on("player:joined", ({ name, persistentId, gameActive, gameId }) => {
+  setStoredPlayerId(persistentId);
+  setStoredPlayerName(name);
   $("display-name").textContent = name;
-  showView("waiting-view");
+
+  if (gameActive) {
+    // Game is already active, wait for game:start event
+    console.log('Rejoined during active game, waiting for game:start');
+  } else {
+    showView("waiting-view");
+  }
 });
 
 // ── Game lifecycle ────────────────────────────────────────────────────────

@@ -108,6 +108,8 @@
 
   #player-list li::before { content: '●'; color: var(--green); font-size: 0.65rem; }
 
+  #player-list li.disconnected::before { color: var(--pink); }
+
   /* ── Game area ── */
   #game-area {
     flex: 1;
@@ -299,7 +301,9 @@ socket.on("host:error",   msg => {
 
 function renderPlayers(players) {
   $("player-count").textContent = players.length;
-  $("player-list").innerHTML = players.map(p => `<li>${p.name}</li>`).join("");
+  $("player-list").innerHTML = players.map(p =>
+    `<li class="${p.connected ? '' : 'disconnected'}">${p.name}</li>`
+  ).join("");
 }
 
 function renderGames(games) {

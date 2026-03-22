@@ -4,13 +4,22 @@ const { Server } = require("socket.io");
 const path    = require("path");
 const os      = require("os");
 const QRCode  = require("qrcode");
+const jwt     = require("jsonwebtoken");
 
 const GameManager = require("./GameManager");
 
 const app    = express();
 const server = http.createServer(app);
-const io     = new Server(server);
+const io     = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  },
+  pingTimeout: 60000,  // 60 seconds
+  pingInterval: 25000  // 25 seconds
+});
 const PORT   = 3000;
+const JWT_SECRET = "openbox-secret-key"; // In production, use environment variable
 
 // ── Static shell UIs ─────────────────────────────────────────────────────────
 app.use("/host",   express.static(path.join(__dirname, "public/host")));
@@ -26,6 +35,29 @@ app.get("/qr", async (req, res) => {
 // ── Expose server IP to the host shell ───────────────────────────────────────
 app.get("/api/ip", (_, res) => res.json({ ip: getLocalIP() }));
 
+// ── JWT token generation for persistent sessions ───────────────────────────
+app.post("/api/auth/token", express.json(), (req, res) => {
+  const { playerId, name } = req.body;
+  if (!playerId || !name) {
+    return res.status(400).json({ error: "playerId and name required" });
+  }
+
+  const token = jwt.sign({ playerId, name }, JWT_SECRET, { expiresIn: "24h" });
+  res.json({ token });
+});
+
+// ── JWT token validation middleware ─────────────────────────────────────────
+function authenticateToken(req, res, next) {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: "Access token required" });
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: "Invalid token" });
+    req.user = user;
+    next();
+  });
+}
+
 // ── Redirects ────────────────────────────────────────────────────────────────
 app.get("/",       (_, res) => res.redirect("/host"));
 app.get("/host",   (_, res) => res.sendFile(path.join(__dirname, "public/host/index.html")));
@@ -38,7 +70,7 @@ const gm = new GameManager(io, app);
 io.on("connection", (socket) => {
   socket.on("host:connect",    ()           => gm.onHostConnect(socket));
   socket.on("host:ready",      ()           => gm.onHostReady(socket));
-  socket.on("player:join",     ({ name })   => gm.onPlayerJoin(socket, name));
+  socket.on("player:join",     (data)       => gm.onPlayerJoin(socket, data));
   socket.on("host:start_game", ({ gameId }) => gm.startGame(gameId));
   socket.on("host:end_game",   ()           => gm.endGame());
   socket.on("player:action",   (payload)   => gm.onPlayerAction(socket, payload));
