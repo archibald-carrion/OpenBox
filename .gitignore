@@ -1,1 +1,7 @@
 node_modules/
+
+# Cursor / AI project files
+.cursor/
+
+# Project rules (local AI guidance)
+rules/
