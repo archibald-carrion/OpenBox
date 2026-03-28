@@ -4,6 +4,18 @@ A fully local, self-hosted party game server. Plug your PC into a TV via HDMI, r
 
 The current version of the game is fully vibe-coded to get a quick MVP, but I intend to improve the current implementation in the future.
 
+## Connection Reliability
+
+This server includes enhanced connection handling to prevent disconnections when phones go to sleep or switch apps:
+
+- **Persistent Sessions**: Players maintain their identity even after temporary disconnections
+- **Auto-Reconnection**: Clients automatically reconnect when network connectivity is restored
+- **Local Storage**: Player data is stored locally on devices for seamless rejoining
+- **Heartbeat Monitoring**: Server maintains connections with regular ping/pong checks
+- **Session Cleanup**: Old disconnected sessions are automatically cleaned up after 30 minutes
+
+When a player returns to the game page, they'll automatically rejoin with their previous name and progress.
+
 ## Quick Start
 
 ```bash

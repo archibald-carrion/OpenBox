@@ -57,8 +57,8 @@ const game = {
     }
   },
 
-  onPlayerReady({ socket }) {
-    state.readyPlayers.add(socket.id);
+  onPlayerReady({ socket, player }) {
+    state.readyPlayers.add(player.id);
     const total = Object.keys(state.players).length;
     if (state.readyPlayers.size >= total && state.phase === "waiting") {
       state.phase = "writing";
@@ -280,15 +280,15 @@ const game = {
       .sort((a, b) => b.score - a.score);
   },
 
-  onPlayerAction({ socket, payload, players }) {
+  onPlayerAction({ socket, player, payload, players }) {
     if (payload.type === "answer" && state.phase === "writing") {
       const { pairId, text } = payload;
-      const key = `${pairId}:${socket.id}`;
+      const key = `${pairId}:${player.id}`;
       if (state.answers[key]) return; // already answered this one
 
       // Verify this player is actually in this pair
       const pair = state.pairs.find(p => p.pairId === pairId);
-      if (!pair || (pair.playerA !== socket.id && pair.playerB !== socket.id)) return;
+      if (!pair || (pair.playerA !== player.id && pair.playerB !== player.id)) return;
 
       state.answers[key] = (text || "").trim().substring(0, 120) || "...";
 
@@ -308,14 +308,14 @@ const game = {
     }
 
     if (payload.type === "vote" && state.phase === "voting") {
-      if (state.votes[socket.id]) return;
+      if (state.votes[player.id]) return;
       const pair = state.pairs[state.judgeIndex];
-      if (socket.id === pair.playerA || socket.id === pair.playerB) return;
+      if (player.id === pair.playerA || player.id === pair.playerB) return;
 
-      state.votes[socket.id] = payload.slot;
+      state.votes[player.id] = payload.slot;
       socket.emit("promptwar:vote_ack");
 
-      const voterCount = Object.keys(players).filter(id =>
+      const voterCount = Object.keys(state.players).filter(id =>
         id !== pair.playerA && id !== pair.playerB
       ).length;
 

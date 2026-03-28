@@ -107,22 +107,22 @@ const game = {
       .sort((a, b) => b.score - a.score);
   },
 
-  onPlayerAction({ socket, payload, players }) {
-    if (payload.type !== "answer" || state.answered[socket.id]) return;
+  onPlayerAction({ socket, player, payload, players }) {
+    if (payload.type !== "answer" || state.answered[player.id]) return;
 
-    state.answered[socket.id] = true;
+    state.answered[player.id] = true;
     const q       = state.questions[state.current];
     const elapsed = Date.now() - state.questionStart;
     const correct = payload.choice === q.answer;
 
     if (correct) {
       const speed = Math.max(0, 1 - elapsed / 15000);
-      state.scores[socket.id] = (state.scores[socket.id] || 0) + Math.round(100 + speed * 400);
+      state.scores[player.id] = (state.scores[player.id] || 0) + Math.round(100 + speed * 400);
     }
 
     socket.emit("trivia:ack", { correct });
 
-    if (Object.keys(players).every(id => state.answered[id])) {
+    if (Object.keys(state.answered).length === Object.keys(state.players).length) {
       clearTimeout(state.timer);
       state.timer = setTimeout(() => game._revealAnswer(), 800);
     }
