@@ -1,0 +1,122 @@
+<style>
+  #aod-host { width: 100%; text-align: center; }
+
+  .aod-title {
+    font-family: 'Fredoka One', cursive;
+    font-size: 2.2rem;
+    color: var(--yellow);
+    margin-bottom: 6px;
+  }
+
+  .aod-sub { color: var(--muted); font-size: 1rem; margin-bottom: 20px; }
+
+  /* Situation / Writing phase */
+  #aod-writing-panel { padding: 20px 0; }
+
+  .aod-situation-box {
+    background: var(--panel);
+    border: 2px solid var(--accent);
+    border-radius: 16px;
+    padding: 24px 32px;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 24px;
+    line-height: 1.4;
+  }
+
+  .aod-timer-bar {
+    height: 8px;
+    background: #2a2845;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+
+  .aod-timer-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 4px;
+    transition: width linear;
+  }
+
+  #aod-progress { color: var(--muted); font-size: 1rem; margin-bottom: 8px; }
+
+  /* Reveal phase */
+  #aod-reveal-panel { max-width: 700px; margin: 0 auto; }
+
+  .aod-result-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    background: var(--panel);
+    border-radius: 14px;
+    padding: 16px 20px;
+    margin-bottom: 10px;
+    text-align: left;
+    animation: slideIn 0.4s ease both;
+  }
+
+  .aod-result-row.survived { border-left: 4px solid var(--green); }
+  .aod-result-row.died { border-left: 4px solid var(--pink); }
+
+  .aod-result-emoji { font-size: 1.8rem; flex-shrink: 0; }
+  .aod-result-name { font-weight: 800; font-size: 1.1rem; color: var(--text); }
+  .aod-result-response { font-size: 0.95rem; color: var(--muted); margin-top: 6px; }
+  .aod-result-reasoning { font-size: 0.9rem; color: var(--yellow); margin-top: 8px; font-style: italic; }
+
+  /* Scoreboard */
+  .aod-score-list { max-width: 420px; margin: 0 auto; }
+
+  .aod-score-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    animation: slideIn 0.4s ease both;
+  }
+
+  .aod-score-row:nth-child(1) { border-left: 4px solid var(--yellow); }
+  .aod-score-row:nth-child(2) { border-left: 4px solid var(--muted); }
+  .aod-score-row:nth-child(3) { border-left: 4px solid #cd7f32; }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-20px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+</style>
+
+<div id="aod-host">
+
+  <!-- Writing phase -->
+  <div id="aod-writing-panel">
+    <div class="aod-title" id="aod-round-header">Round 1 / 5</div>
+    <div class="aod-sub">Players are typing their responses…</div>
+    <div class="aod-situation-box" id="aod-situation"></div>
+    <div class="aod-timer-bar">
+      <div class="aod-timer-fill" id="aod-timer-fill" style="width:100%"></div>
+    </div>
+    <div id="aod-progress">Waiting for responses…</div>
+  </div>
+
+  <!-- Reveal phase -->
+  <div id="aod-reveal-panel" style="display:none">
+    <div class="aod-title" id="aod-reveal-header">Round results</div>
+    <div class="aod-sub" id="aod-reveal-sub">Who lived? Who died?</div>
+    <div id="aod-results-list" style="margin-bottom:24px"></div>
+    <div class="aod-title" style="font-size:1.4rem;margin-bottom:12px">Scores</div>
+    <div id="aod-scores" class="aod-score-list"></div>
+  </div>
+
+  <!-- Game over -->
+  <div id="aod-gameover-panel" style="display:none">
+    <div class="aod-title">Final Scores!</div>
+    <div id="aod-final-scores" class="aod-score-list" style="margin-top:20px"></div>
+  </div>
+
+</div>

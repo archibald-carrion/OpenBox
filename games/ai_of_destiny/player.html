@@ -1,0 +1,75 @@
+<style>
+  .aod-p-view { width: 100%; text-align: center; }
+
+  .aod-situation-display {
+    background: var(--panel);
+    border: 2px solid var(--accent);
+    border-radius: 14px;
+    padding: 18px 16px;
+    font-size: 1.1rem;
+    font-weight: 800;
+    line-height: 1.5;
+    margin-bottom: 16px;
+    color: var(--text);
+  }
+
+  #aod-answer-input {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 2px solid #2a2845;
+    background: var(--panel);
+    color: var(--text);
+    font-family: 'Nunito', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    outline: none;
+    margin-bottom: 12px;
+    resize: none;
+    min-height: 100px;
+  }
+
+  #aod-answer-input:focus { border-color: var(--accent); }
+
+  #aod-answer-sent { color: var(--green); margin-top: 10px; font-weight: 700; min-height: 20px; font-size: 0.9rem; }
+
+  .aod-big-emoji { font-size: 3.5rem; display: block; margin-bottom: 10px; }
+  .aod-big-msg   { font-family: 'Fredoka One', cursive; font-size: 1.5rem; color: var(--yellow); }
+  .aod-small-msg { color: var(--muted); margin-top: 6px; font-size: 0.9rem; }
+
+  .aod-score-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    font-weight: 700;
+    font-size: 1rem;
+  }
+</style>
+
+<!-- Write view -->
+<div id="aod-write-view" class="aod-p-view" style="display:none">
+  <div style="color:var(--muted);font-size:0.85rem;margin-bottom:8px" id="aod-round-label"></div>
+  <div class="aod-situation-display" id="aod-situation"></div>
+  <textarea id="aod-answer-input" placeholder="How do you survive…?" maxlength="400"></textarea>
+  <button class="ob-btn ob-btn-primary" id="aod-submit-btn">Submit!</button>
+  <div id="aod-answer-sent"></div>
+</div>
+
+<!-- Reveal / Wait view -->
+<div id="aod-reveal-view" class="aod-p-view" style="display:none">
+  <span class="aod-big-emoji" id="aod-reveal-emoji"></span>
+  <div class="aod-big-msg"   id="aod-reveal-msg"></div>
+  <div class="aod-small-msg" id="aod-reveal-response"></div>
+  <div id="aod-reveal-reasoning" style="margin-top:12px;font-style:italic;color:var(--yellow);font-size:0.95rem"></div>
+  <div id="aod-scores-list" style="margin-top:20px"></div>
+</div>
+
+<!-- Game over view -->
+<div id="aod-gameover-view" class="aod-p-view" style="display:none">
+  <div class="aod-big-msg" style="margin-bottom:16px">Game Over!</div>
+  <div id="aod-final-scores-list"></div>
+</div>
