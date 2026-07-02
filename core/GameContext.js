@@ -4,13 +4,15 @@
  * @property {string} name
  * @property {boolean} connected
  * @property {Date} lastSeen
+ * @property {import('socket.io').Socket} [socket]
  */
-
-const { Socket } = require('socket.io');
 
 /**
  * Provides a restricted, stable API for games to interact with the core system.
  * Prevents games from directly modifying core state or accessing internal methods.
+ * 
+ * This class exposes properties that can be destructured by game modules,
+ * maintaining backward compatibility while adding type safety and restrictions.
  */
 class GameContext {
   /**
@@ -19,23 +21,35 @@ class GameContext {
    * @param {Function} endGame - Function to end the current game
    */
   constructor(io, players, endGame) {
+    // Store internal references
     this._io = io;
     this._players = players;
     this._endGame = endGame;
-  }
 
-  /**
-   * @returns {import('socket.io').Server} Socket.IO server instance (read-only)
-   */
-  get io() {
-    return this._io;
-  }
+    // Expose io directly (read-only via getter)
+    // Expose players as a frozen array (read-only)
+    // Expose endGame as a bound function
+    
+    // Make these enumerable so they can be destructured by game modules
+    Object.defineProperty(this, 'io', {
+      value: io,
+      enumerable: true,
+      writable: false,
+      configurable: false
+    });
 
-  /**
-   * @returns {Player[]} Array of all players (read-only)
-   */
-  get players() {
-    return Object.freeze(Object.values(this._players));
+    Object.defineProperty(this, 'players', {
+      get: () => Object.freeze(Object.values(this._players)),
+      enumerable: true,
+      configurable: true
+    });
+
+    Object.defineProperty(this, 'endGame', {
+      value: () => this._endGame(),
+      enumerable: true,
+      writable: false,
+      configurable: false
+    });
   }
 
   /**
@@ -50,13 +64,6 @@ class GameContext {
    */
   get totalPlayers() {
     return Object.keys(this._players).length;
-  }
-
-  /**
-   * Ends the current game
-   */
-  endGame() {
-    this._endGame();
   }
 
   /**
