@@ -1,73 +1,58 @@
-/**
- * @typedef {Object} Player
- * @property {string} id
- * @property {string} name
- * @property {boolean} connected
- * @property {Date} lastSeen
- * @property {import('socket.io').Socket} [socket]
- */
+const EventBus = require('./EventBus');
 
 /**
  * Provides a restricted, stable API for games to interact with the core system.
- * Prevents games from directly modifying core state or accessing internal methods.
- * 
- * This class exposes properties that can be destructured by game modules,
- * maintaining backward compatibility while adding type safety and restrictions.
+ * Hides core internals and prevents direct state mutation.
  */
 class GameContext {
   /**
    * @param {import('socket.io').Server} io - Socket.IO server instance
-   * @param {Object.<string, Player>} players - Map of playerId to Player objects
+   * @param {Object.<string, import('./interfaces/Game').Player>} players - Map of playerId to player data
    * @param {Function} endGame - Function to end the current game
+   * @param {EventBus} eventBus - Event bus for decoupled communication
    */
-  constructor(io, players, endGame) {
-    // Store internal references
+  constructor(io, players, endGame, eventBus) {
     this._io = io;
     this._players = players;
     this._endGame = endGame;
-
-    // Expose io directly (read-only via getter)
-    // Expose players as a frozen array (read-only)
-    // Expose endGame as a bound function
-    
-    // Make these enumerable so they can be destructured by game modules
-    Object.defineProperty(this, 'io', {
-      value: io,
-      enumerable: true,
-      writable: false,
-      configurable: false
-    });
-
-    Object.defineProperty(this, 'players', {
-      get: () => Object.freeze(Object.values(this._players)),
-      enumerable: true,
-      configurable: true
-    });
-
-    Object.defineProperty(this, 'endGame', {
-      value: () => this._endGame(),
-      enumerable: true,
-      writable: false,
-      configurable: false
-    });
+    this._eventBus = eventBus;
   }
 
   /**
-   * @returns {number} Number of connected players
+   * @returns {import('socket.io').Server} Socket.IO server instance
    */
-  get playerCount() {
-    return Object.values(this._players).filter(p => p.connected).length;
+  get io() {
+    return this._io;
   }
 
   /**
-   * @returns {number} Total number of players (including disconnected)
+   * @returns {Object.<string, import('./interfaces/Game').Player>} Read-only copy of players
    */
-  get totalPlayers() {
-    return Object.keys(this._players).length;
+  get players() {
+    // Return a shallow copy of the players object to prevent direct mutation
+    const playersCopy = {};
+    for (const [id, player] of Object.entries(this._players)) {
+      playersCopy[id] = { ...player };
+    }
+    return Object.freeze(playersCopy);
   }
 
   /**
-   * Broadcasts an event to all connected clients (host and players)
+   * @returns {EventBus} Event bus for subscribing to/emitting events
+   */
+  get eventBus() {
+    return this._eventBus;
+  }
+
+  /**
+   * Ends the current game.
+   */
+  endGame() {
+    this._endGame();
+  }
+
+  /**
+   * Broadcasts an event to all connected clients.
    * @param {string} event - Event name
    * @param {any} data - Data to send
    */
@@ -76,16 +61,7 @@ class GameContext {
   }
 
   /**
-   * Broadcasts an event to all players only
-   * @param {string} event - Event name
-   * @param {any} data - Data to send
-   */
-  broadcastToPlayers(event, data) {
-    this._io.to('players').emit(event, data);
-  }
-
-  /**
-   * Broadcasts an event to the host only
+   * Broadcasts an event to the host only.
    * @param {string} event - Event name
    * @param {any} data - Data to send
    */
@@ -94,30 +70,12 @@ class GameContext {
   }
 
   /**
-   * Gets a player by ID
-   * @param {string} playerId - Player ID
-   * @returns {Player|undefined} Player object or undefined if not found
+   * Broadcasts an event to all players.
+   * @param {string} event - Event name
+   * @param {any} data - Data to send
    */
-  getPlayer(playerId) {
-    return this._players[playerId];
-  }
-
-  /**
-   * Gets all connected players
-   * @returns {Player[]} Array of connected players
-   */
-  getConnectedPlayers() {
-    return Object.values(this._players).filter(p => p.connected);
-  }
-
-  /**
-   * Checks if a player is connected
-   * @param {string} playerId - Player ID
-   * @returns {boolean} True if player is connected
-   */
-  isPlayerConnected(playerId) {
-    const player = this._players[playerId];
-    return player ? player.connected : false;
+  broadcastToPlayers(event, data) {
+    this._io.to('players').emit(event, data);
   }
 }
 
